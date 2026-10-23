@@ -66,6 +66,10 @@ export class HomeScene extends Phaser.Scene {
     this.buttons = [createBtn, joinBtn];
 
     this.message = this.add.text(cx, 505, '', textStyle(16, TEXT.danger)).setOrigin(0.5);
+    if (game.homeNotice) {
+      this.message.setText(ja.apiError[game.homeNotice] ?? ja.apiError.unknown!);
+      game.homeNotice = null;
+    }
   }
 
   private readName(input: HTMLInputElement): string | null {

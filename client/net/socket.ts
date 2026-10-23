@@ -17,6 +17,14 @@ const BACKOFF_BASE_MS = 1000;
 const BACKOFF_MAX_MS = 8000;
 const PING_INTERVAL_MS = 1000;
 const RTT_SAMPLES = 10;
+/** 最後の受信からこれを超えたら接続が死んだとみなして張り直す */
+const RECEIVE_TIMEOUT_MS = 5000;
+/** open 前に閉じた接続がこの回数続くごとに、部屋がまだあるかを HTTP で確認する */
+const FAILED_OPENS_PER_CHECK = 3;
+/** 部屋の存在確認の待ち時間上限 */
+const ROOM_CHECK_TIMEOUT_MS = 5000;
+/** 部屋が見つからない（存在確認が 404）時に fatal で通知するコード */
+export const ROOM_NOT_FOUND = 'room_not_found';
 /** 送信バッファがこれを超えたら詰まりとみなして張り直す */
 const MAX_BUFFERED_BYTES = 64 * 1024;
 
@@ -43,6 +51,12 @@ export class GameSocket extends Emitter<SocketEvents> {
   /** serverTime − Date.now() の推定値（ミリ秒） */
   serverOffset = 0;
   private hasPongOffset = false;
+  private lastReceivedAt = 0;
+  private lastTickAt = 0;
+  /** open 前に閉じた接続の連続回数 */
+  private failedOpens = 0;
+  /** start / stop ごとに増やし、古い非同期処理（存在確認）の結果を捨てる */
+  private generation = 0;
 
   constructor() {
     super();
@@ -60,16 +74,19 @@ export class GameSocket extends Emitter<SocketEvents> {
 
   start(roomCode: string, sessionToken: string): void {
     this.stop();
+    this.generation++;
     this.roomCode = roomCode;
     this.sessionToken = sessionToken;
     this.stopped = false;
     this.attempt = 0;
+    this.failedOpens = 0;
     this.open();
   }
 
   /** 再接続しない終了 */
   stop(): void {
     this.stopped = true;
+    this.generation++;
     this.clearTimers();
     if (this.ws) {
       const ws = this.ws;
@@ -140,7 +157,12 @@ export class GameSocket extends Emitter<SocketEvents> {
       return;
     }
     this.ws = ws;
+    let opened = false;
     ws.onopen = () => {
+      opened = true;
+      this.failedOpens = 0;
+      this.lastReceivedAt = Date.now();
+      this.lastTickAt = Date.now();
       ws.send(
         JSON.stringify({
           type: 'authenticate',
@@ -149,10 +171,20 @@ export class GameSocket extends Emitter<SocketEvents> {
         } satisfies ClientMessage),
       );
       this.pingTimer = setInterval(() => {
+        const now = Date.now();
+        // バックグラウンドでタイマーが間引かれた直後は、受信途絶と区別できないため判定しない
+        const throttled = now - this.lastTickAt > PING_INTERVAL_MS * 2;
+        this.lastTickAt = now;
+        if (!throttled && now - this.lastReceivedAt > RECEIVE_TIMEOUT_MS) {
+          // pong も含めて何も届かない: 既存接続を捨てて張り直す
+          this.dropAndReconnect(ws);
+          return;
+        }
         this.send({ type: 'ping', clientTime: Date.now() });
       }, PING_INTERVAL_MS);
     };
     ws.onmessage = (ev) => {
+      this.lastReceivedAt = Date.now();
       if (typeof ev.data !== 'string') return;
       this.handleMessage(ev.data);
     };
@@ -166,6 +198,12 @@ export class GameSocket extends Emitter<SocketEvents> {
         return;
       }
       if (this.stopped || this.status === 'fatal') return;
+      if (!opened && ++this.failedOpens >= FAILED_OPENS_PER_CHECK) {
+        // Upgrade が続けて失敗: 部屋が消えたのか回線の問題かを HTTP で確かめる
+        this.failedOpens = 0;
+        void this.checkRoomThenReconnect();
+        return;
+      }
       this.scheduleReconnect();
     };
     ws.onerror = () => {
@@ -225,6 +263,51 @@ export class GameSocket extends Emitter<SocketEvents> {
     }
     this.setStatus('fatal');
     this.emit('fatal', code);
+  }
+
+  /**
+   * Upgrade なしの GET で部屋の有無を確認する。404 なら部屋なしとして終了し、
+   * それ以外（426・ネットワークエラー・タイムアウト）は再接続を続ける
+   */
+  private async checkRoomThenReconnect(): Promise<void> {
+    const gen = this.generation;
+    this.setStatus('reconnecting');
+    let notFound = false;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ROOM_CHECK_TIMEOUT_MS);
+    try {
+      const res = await fetch(`/api/rooms/${encodeURIComponent(this.roomCode)}/socket`, {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        signal: ctrl.signal,
+      });
+      notFound = res.status === 404;
+    } catch {
+      // 回線の問題とみなして再接続を続ける
+    } finally {
+      clearTimeout(timer);
+    }
+    if (gen !== this.generation || this.stopped || this.status === 'fatal' || this.ws) return;
+    if (notFound) {
+      this.fail(ROOM_NOT_FOUND);
+      return;
+    }
+    this.scheduleReconnect();
+  }
+
+  private dropAndReconnect(ws: WebSocket): void {
+    if (this.ws !== ws) return;
+    this.ws = null;
+    ws.onopen = ws.onclose = ws.onerror = ws.onmessage = null;
+    try {
+      ws.close();
+    } catch {
+      // 無視
+    }
+    this.clearTimers();
+    if (this.stopped || this.status === 'fatal') return;
+    this.scheduleReconnect();
   }
 
   private scheduleReconnect(): void {

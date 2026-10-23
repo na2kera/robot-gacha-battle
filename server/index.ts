@@ -104,10 +104,12 @@ async function joinRoom(request: Request, env: Env, url: URL, code: string): Pro
 }
 
 async function openSocket(request: Request, env: Env, url: URL, code: string): Promise<Response> {
-  if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
-    return json({ error: 'upgrade_required' }, 426);
+  const isUpgrade = request.headers.get('Upgrade')?.toLowerCase() === 'websocket';
+  if (isUpgrade && !isAllowedOrigin(request, url, env)) {
+    return json({ error: 'forbidden_origin' }, 403);
   }
-  if (!isAllowedOrigin(request, url, env)) return json({ error: 'forbidden_origin' }, 403);
+  // Upgrade なしの GET は DO が「部屋なし 404 / 部屋あり 426」を返す。
+  // クライアントは再接続を諦める前にこれで部屋の存在を確かめる
   return withNoStore(await roomStub(env, code).fetch(request));
 }
 

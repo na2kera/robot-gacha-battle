@@ -93,3 +93,18 @@ describe('POST /api/rooms/:code/join', () => {
     expect(statuses).toEqual([200, 409, 409]);
   });
 });
+
+describe('socket の存在確認', () => {
+  it('Upgrade なしの GET は部屋があれば 426、なければ 404', async () => {
+    const created = await SELF.fetch('https://example.com/api/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'probe' }),
+    });
+    const { roomCode } = (await created.json()) as { roomCode: string };
+    const exists = await SELF.fetch(`https://example.com/api/rooms/${roomCode}/socket`);
+    expect(exists.status).toBe(426);
+    const missing = await SELF.fetch('https://example.com/api/rooms/ZZZZZZZZZZ/socket');
+    expect(missing.status).toBe(404);
+  });
+});

@@ -144,6 +144,12 @@ export class BattleScene extends Phaser.Scene {
     autoOff(
       this,
       game.on('snapshot', (msg, bytes) => this.onSnapshot(msg, bytes)),
+      // 再接続: 未確認入力を捨て、次の snapshot の自機状態から予測をやり直す
+      game.on('welcome', () => {
+        this.history = [];
+        this.predicted = this.prevPredicted = null;
+        this.offsetX = this.offsetY = 0;
+      }),
       // 再接続では welcome の後に reveal が届くため、ここで構成を受け取る
       game.on('reveal', (msg) => {
         const l = msg.loadouts[this.meId];
@@ -227,8 +233,8 @@ export class BattleScene extends Phaser.Scene {
         this.sendAcc -= SEND_INTERVAL;
         sent++;
         const cmd: InputCommand = { seq: game.nextInputSeq(), ...sample };
-        game.sendInput(cmd);
-        if (this.predicted && this.statsMe) {
+        // 送れなかった入力はサーバーに届かないため予測に使わない
+        if (game.sendInput(cmd) && this.predicted && this.statsMe) {
           this.history.push(cmd);
           if (this.history.length > MAX_HISTORY) this.history.shift();
           this.prevPredicted = this.predicted;

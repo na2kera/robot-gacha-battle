@@ -18,7 +18,7 @@ import {
 } from '../../shared/protocol';
 import { Emitter } from './emitter';
 import { clearSession, saveSession, type StoredSession } from './session';
-import { GameSocket, type SocketStatus } from './socket';
+import { GameSocket, ROOM_NOT_FOUND, type SocketStatus } from './socket';
 
 /** 応答を待つ時間。超えたら操作をやり直せるようにする */
 const DRAFT_TIMEOUT_MS = 8000;
@@ -44,6 +44,8 @@ export type GameEvents = {
   fatal: [code: string];
   /** leave などでセッションを終えた */
   ended: [];
+  /** welcome を受けた（初回接続・再接続とも） */
+  welcome: [];
 };
 
 function emptyDraft(deadlineAt: number | null): PrivateDraftState {
@@ -82,6 +84,8 @@ export class GameClient extends Emitter<GameEvents> {
   /** 最後に welcome を受けた時刻（Date.now） */
   welcomedAt = 0;
   private pendingTimer: ReturnType<typeof setTimeout> | null = null;
+  /** ホームに出すお知らせ（ja.apiError のキー）。表示したら消す */
+  homeNotice: string | null = null;
   /** 最後に送った input の seq。試合（matchId）ごとに 0 から単調増加し、再接続でも戻さない */
   private inputSeq = 0;
 
@@ -89,7 +93,15 @@ export class GameClient extends Emitter<GameEvents> {
     super();
     this.socket.on('message', (msg, bytes) => this.handle(msg, bytes));
     this.socket.on('status', (s) => this.emit('status', s));
-    this.socket.on('fatal', (code) => this.emit('fatal', code));
+    this.socket.on('fatal', (code) => {
+      if (code === ROOM_NOT_FOUND) {
+        // 部屋が消えている: セッションを捨ててホームで知らせる
+        this.homeNotice = code;
+        this.abandon();
+        return;
+      }
+      this.emit('fatal', code);
+    });
   }
 
   get playerId(): string | null {
@@ -165,8 +177,9 @@ export class GameClient extends Emitter<GameEvents> {
     }
   }
 
-  sendInput(cmd: InputCommand): void {
-    this.send({ type: 'input', matchId: this.matchId, ...cmd });
+  /** 送れたら true。切断中は false */
+  sendInput(cmd: InputCommand): boolean {
+    return this.send({ type: 'input', matchId: this.matchId, ...cmd });
   }
 
   /** 次に送る input の seq */
@@ -220,6 +233,7 @@ export class GameClient extends Emitter<GameEvents> {
       if (this.pending?.requestId !== pending.requestId) return;
       this.clearPending();
       this.emit('draft', 'timeout');
+      this.emit('change');
     }, DRAFT_TIMEOUT_MS);
     this.emit('change');
   }
@@ -289,6 +303,7 @@ export class GameClient extends Emitter<GameEvents> {
         this.syncRematch();
         // 応答前に切れた操作は同じ requestId で再送する（サーバー側で冪等）
         if (this.pending) this.sendPending();
+        this.emit('welcome');
         this.emit('change');
         return;
       }
@@ -315,12 +330,20 @@ export class GameClient extends Emitter<GameEvents> {
         if (msg.matchId !== this.matchId || !this.privateDraft) return;
         const part = this.privateDraft.parts[msg.partType];
         // requestId が未知（期限切れの自動確定 'auto' など）でも状態は反映する。古い応答では上書きしない
-        if (msg.candidateVersion >= part.candidateVersion) {
+        if (msg.candidateVersion > part.candidateVersion) {
           part.candidate = msg.candidate;
           part.candidateVersion = msg.candidateVersion;
           part.drawCount = msg.drawCount;
           part.locked = msg.locked;
           part.confirmed = msg.locked ? msg.candidate : null;
+        } else if (msg.candidateVersion === part.candidateVersion) {
+          // 同じ version（冪等再送など）では確定を後退させない
+          part.candidate = msg.candidate;
+          part.drawCount = Math.max(part.drawCount, msg.drawCount);
+          if (msg.locked) {
+            part.locked = true;
+            part.confirmed = msg.candidate;
+          }
         }
         if (this.pending?.requestId === msg.requestId) this.clearPending();
         this.emit('draft', null);
