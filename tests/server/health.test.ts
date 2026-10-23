@@ -18,10 +18,10 @@ describe('Worker', () => {
 });
 
 describe('GameRoom DO', () => {
-  it('スタブに到達できる（未実装は 501）', async () => {
+  it('未初期化のルームへの接続は 404', async () => {
     const id = env.GAME_ROOM.idFromName('TEST-ROOM');
     const stub = env.GAME_ROOM.get(id);
-    const res = await stub.fetch('https://do/');
-    expect(res.status).toBe(501);
+    const res = await stub.fetch('https://do/', { headers: { Upgrade: 'websocket' } });
+    expect(res.status).toBe(404);
   });
 });

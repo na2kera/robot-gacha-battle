@@ -35,7 +35,8 @@ export type ErrorCode =
   | 'bad_phase'
   | 'invalid_input'
   | 'message_too_large'
-  | 'internal';
+  | 'internal'
+  | 'replaced';
 
 export const PART_TYPES: readonly PartType[] = ['body', 'legs', 'weapon', 'core'];
 
