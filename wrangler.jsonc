@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "robot-gacha-battle",
+  "main": "server/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "assets": {
+    // directory は @cloudflare/vite-plugin が設定する
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "GAME_ROOM", "class_name": "GameRoom" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "ratelimits": [
+    {
+      "name": "ROOM_API_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
+  "vars": {
+    // 本番は同一オリジンのみ許可。開発時に追加で許可する Origin をカンマ区切りで指定
+    "EXTRA_ALLOWED_ORIGINS": "",
+  },
+  // 当面は production のみ運用。staging を追加する時は "env": { "staging": { ... } } に
+  // durable_objects・migrations 以外（ratelimits・vars）を再記述する。
+  // 空の env を置くと wrangler types が全バインディングを optional にするため、ここには書かない。
+}

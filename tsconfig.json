@@ -1,0 +1,9 @@
+{
+  // エディタ用。型チェックは tsconfig.shared/client/server.json を個別に実行する
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "@cloudflare/vitest-plugin/types"]
+  },
+  "include": ["client", "shared", "server", "tests", "worker-configuration.d.ts", "*.ts"]
+}

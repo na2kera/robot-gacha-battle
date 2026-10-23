@@ -1,0 +1,6 @@
+{
+  // shared は DOM・Workers API に依存しない純粋 TS。lib を ES2022 のみに絞って強制する
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": { "lib": ["ES2022"] },
+  "include": ["shared", "tests/shared", "vitest.config.ts", "vitest.shared.config.ts"]
+}
