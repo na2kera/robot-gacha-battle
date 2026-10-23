@@ -2,6 +2,7 @@ import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import type { GameRoom } from '../../server/game-room';
 import { ARENA } from '../../shared/arena';
+import { BATTLE_DURATION_SEC, STALL_ABORT_MS } from '../../shared/config';
 import {
   TestClient,
   advanceAndFireAlarm,
@@ -260,5 +261,55 @@ describe('BATTLE', () => {
     expect(result.winnerId).toBeNull();
     const welcome = back.messages.find((m) => m.type === 'welcome');
     expect(welcome?.type === 'welcome' && welcome.publicState.phase).toBe('RESULT');
+  });
+});
+
+/** DO 内の battle runtime（private）をテストから触るための型 */
+interface BattleInternals {
+  battle: {
+    loop: { state: { elapsedSec: number }; running: boolean; lastTime: number };
+  } | null;
+}
+
+describe('BATTLE の終了', () => {
+  it('入力なしで試合時間が経過すると timeout_draw（両者無傷）', async () => {
+    const p = await setupTwoPlayers();
+    await toBattle(p);
+    await p.a.waitFor('snapshot');
+    // 実時間で 90 秒待たず、残り 0.1 秒まで試合時間を進める
+    await runInDurableObject(roomStub(p.code), (instance: GameRoom) => {
+      const loop = (instance as unknown as BattleInternals).battle!.loop;
+      loop.state = { ...loop.state, elapsedSec: BATTLE_DURATION_SEC - 0.1 };
+    });
+    const result = await p.a.waitFor('result');
+    expect(result.reason).toBe('timeout_draw');
+    expect(result.winnerId).toBeNull();
+    expect(result.hpRatios).toEqual({ [p.aId]: 1, [p.bId]: 1 });
+    expect((await p.b.waitFor('result')).reason).toBe('timeout_draw');
+    await p.b.waitFor('roomState', (m) => m.phase === 'RESULT');
+    const battle = await runInDurableObject(
+      roomStub(p.code),
+      (instance: GameRoom) => (instance as unknown as BattleInternals).battle,
+    );
+    expect(battle).toBeNull();
+  });
+
+  it('tick ループが 2 秒超止まると aborted', async () => {
+    const p = await setupTwoPlayers();
+    await toBattle(p);
+    await p.a.waitFor('snapshot');
+    // 前回 tick の時刻を 2.5 秒前にずらし、次の tick で停止とみなさせる
+    await runInDurableObject(roomStub(p.code), (instance: GameRoom) => {
+      (instance as unknown as BattleInternals).battle!.loop.lastTime -= STALL_ABORT_MS + 500;
+    });
+    const result = await p.a.waitFor('result');
+    expect(result.reason).toBe('aborted');
+    expect(result.winnerId).toBeNull();
+    expect(result.hpRatios).toEqual({ [p.aId]: 1, [p.bId]: 1 });
+    await p.b.waitFor('roomState', (m) => m.phase === 'RESULT');
+    // ループは止まり、snapshot は増えない
+    const count = p.a.messages.filter((m) => m.type === 'snapshot').length;
+    await sleep(150);
+    expect(p.a.messages.filter((m) => m.type === 'snapshot').length).toBe(count);
   });
 });
