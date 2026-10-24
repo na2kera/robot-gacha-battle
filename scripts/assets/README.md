@@ -22,7 +22,9 @@ npm run build
 
 生成コマンドはこのディレクトリが所有する出力 PNG・manifest・確認画像を再作成する。
 検証コマンドは実際の PNG をデコードし、寸法・キー・ファイル名・透過・色数・ボディの外接寸法と衝突円・銃口の +x 端・タイルの対向辺を検証し、`measurements.json` を更新する。
-検証結果 JSON には全 50 ファイルの実測サイズ、色数、alpha 外接矩形を列挙する。
+検証結果 JSON には全 62 ファイルの実測サイズ、色数、alpha 外接矩形を列挙する。
+
+赤い正面パーツだけを既存の青い PNG から再生成する場合は `node scripts/assets/generate-red-parts.mjs` を実行する。manifest も更新する。通常の `generate.mjs` も同じ処理を呼び出す。共通パレットの main / dark / hi をそれぞれ青から赤へ完全一致で置換し、それ以外の色・形状・alpha を維持する。`verify.mjs` は12枚すべての RGBA を元画像と比較して検証する。
 
 ## 造形案と画素整理
 

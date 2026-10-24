@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { palettes, generateRedParts } from './generate-red-parts.mjs';
 
 process.env.MAGICK_THREAD_LIMIT = '1';
 
@@ -17,10 +18,6 @@ const ink = '#172333',
 const cream = '#FFF3DC',
   gold = '#FFD166',
   goldDark = '#BB7836';
-const palettes = {
-  blue: { main: '#4C8DFF', dark: '#2956A8', hi: '#A8D3FF' },
-  red: { main: '#FF5C5C', dark: '#AA354B', hi: '#FFB4A3' },
-};
 class Raster {
   constructor(w, h = w) {
     this.w = w;
@@ -450,6 +447,7 @@ function front(id) {
   return scaled;
 }
 for (const id of ids) save(`part_${id}`, front(id));
+generateRedParts(out, ids, images);
 for (const weapon of ids.filter((id) => id.startsWith('weapon_'))) {
   const r = new Raster(12);
   if (weapon === 'weapon_machinegun') {

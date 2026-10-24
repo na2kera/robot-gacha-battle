@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { format } from 'prettier';
+import { palettes } from './generate-red-parts.mjs';
 process.env.MAGICK_THREAD_LIMIT = '1';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const dir = path.join(root, 'public/img');
@@ -16,6 +17,7 @@ for (const id of ids) {
   sizes[`td_${id}_blue`] = [id.startsWith('weapon_') ? 64 : 48, 48];
   sizes[`td_${id}_red`] = [id.startsWith('weapon_') ? 64 : 48, 48];
   sizes[`part_${id}`] = [96, 96];
+  sizes[`part_${id}_red`] = [96, 96];
   if (id.startsWith('weapon_')) sizes[`bullet_${id}`] = [12, 12];
 }
 Object.assign(sizes, {
@@ -156,6 +158,23 @@ for (const [key, expected] of Object.entries(sizes)) {
     }
   }
   rows.push(row);
+}
+// Check every channel, including alpha and all colors outside the team palette.
+const replacements = new Map(
+  Object.entries(palettes.blue).map(([shade, color]) => [
+    color.slice(1).toLowerCase(),
+    Buffer.from(palettes.red[shade].slice(1), 'hex'),
+  ]),
+);
+for (const id of ids) {
+  const blue = decoded.get(`part_${id}`).raw;
+  const red = decoded.get(`part_${id}_red`).raw;
+  const expected = Buffer.from(blue);
+  for (let i = 0; i < blue.length; i += 4) {
+    const replacement = replacements.get(blue.subarray(i, i + 3).toString('hex'));
+    if (replacement) replacement.copy(expected, i);
+  }
+  assert.deepEqual(red, expected, `part_${id}_red: exact team palette replacement`);
 }
 const preview = readFileSync(path.join(root, 'docs/screens/assets-preview.png'));
 assert.deepEqual([preview.readUInt32BE(16), preview.readUInt32BE(20)], [2448, 3744]);

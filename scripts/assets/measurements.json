@@ -1,5 +1,5 @@
 {
-  "assetCount": 50,
+  "assetCount": 62,
   "assembledPreview": {
     "width": 2448,
     "height": 3744,
@@ -40,6 +40,15 @@
       "alphaBounds": [20, 16, 76, 82]
     },
     {
+      "key": "part_body_light_red",
+      "width": 96,
+      "height": 96,
+      "colors": 9,
+      "transparentPixels": 6460,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [20, 16, 76, 82]
+    },
+    {
       "key": "td_body_standard_blue",
       "width": 48,
       "height": 48,
@@ -63,6 +72,15 @@
     },
     {
       "key": "part_body_standard",
+      "width": 96,
+      "height": 96,
+      "colors": 9,
+      "transparentPixels": 5544,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [14, 16, 82, 84]
+    },
+    {
+      "key": "part_body_standard_red",
       "width": 96,
       "height": 96,
       "colors": 9,
@@ -102,6 +120,15 @@
       "alphaBounds": [8, 10, 88, 90]
     },
     {
+      "key": "part_body_heavy_red",
+      "width": 96,
+      "height": 96,
+      "colors": 9,
+      "transparentPixels": 4160,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 10, 88, 90]
+    },
+    {
       "key": "td_legs_hover_blue",
       "width": 48,
       "height": 48,
@@ -121,6 +148,15 @@
     },
     {
       "key": "part_legs_hover",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6560,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 32, 88, 76]
+    },
+    {
+      "key": "part_legs_hover_red",
       "width": 96,
       "height": 96,
       "colors": 6,
@@ -156,6 +192,15 @@
       "alphaBounds": [20, 14, 80, 86]
     },
     {
+      "key": "part_legs_biped_red",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6144,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [20, 14, 80, 86]
+    },
+    {
       "key": "td_legs_tank_blue",
       "width": 48,
       "height": 48,
@@ -175,6 +220,15 @@
     },
     {
       "key": "part_legs_tank",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 4704,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [6, 20, 90, 84]
+    },
+    {
+      "key": "part_legs_tank_red",
       "width": 96,
       "height": 96,
       "colors": 7,
@@ -206,6 +260,15 @@
     },
     {
       "key": "part_weapon_machinegun",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 6928,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [24, 12, 72, 84]
+    },
+    {
+      "key": "part_weapon_machinegun_red",
       "width": 96,
       "height": 96,
       "colors": 7,
@@ -254,6 +317,15 @@
       "alphaBounds": [24, 12, 72, 84]
     },
     {
+      "key": "part_weapon_cannon_red",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 6720,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [24, 12, 72, 84]
+    },
+    {
       "key": "bullet_weapon_cannon",
       "width": 12,
       "height": 12,
@@ -286,6 +358,15 @@
     },
     {
       "key": "part_weapon_shotgun",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 6336,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [22, 12, 74, 84]
+    },
+    {
+      "key": "part_weapon_shotgun_red",
       "width": 96,
       "height": 96,
       "colors": 7,
@@ -332,6 +413,15 @@
       "alphaBounds": [18, 20, 78, 78]
     },
     {
+      "key": "part_core_vital_red",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6216,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 20, 78, 78]
+    },
+    {
       "key": "td_core_boost_blue",
       "width": 48,
       "height": 48,
@@ -361,6 +451,15 @@
       "alphaBounds": [18, 20, 78, 78]
     },
     {
+      "key": "part_core_boost_red",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6216,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 20, 78, 78]
+    },
+    {
       "key": "td_core_power_blue",
       "width": 48,
       "height": 48,
@@ -382,6 +481,15 @@
     },
     {
       "key": "part_core_power",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6216,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 20, 78, 78]
+    },
+    {
+      "key": "part_core_power_red",
       "width": 96,
       "height": 96,
       "colors": 6,
