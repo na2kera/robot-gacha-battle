@@ -9,8 +9,11 @@ import { DEBUG } from '../env';
 import { ja } from '../i18n/ja';
 import { Controls } from '../input/controls';
 import { game } from '../net/game';
-import { drawArena, drawArenaDebug, drawHpBar, drawProjectile, drawRobot, HpLag } from '../ui/draw';
+import { buildArena, ProjectileLayer } from '../ui/arenaView';
+import { drawHpBar, HpLag } from '../ui/draw';
+import { explode, floatText, shake } from '../ui/fx';
 import { HUD_TOP, setupLayout, type Viewport } from '../ui/layout';
+import { RobotSprite } from '../ui/RobotSprite';
 import { COLORS, TEXT, textStyle } from '../ui/theme';
 import { SCENE } from './keys';
 import { autoOff } from './util';
@@ -39,6 +42,12 @@ const OPPONENT_PROJECTILE = 0xffa0a0;
 /** HUD の HP バーの幅・高さ */
 const HUD_HP_WIDTH = 260;
 const HUD_HP_HEIGHT = 14;
+/** 被弾の白フラッシュ（ミリ秒） */
+const HIT_FLASH_MS = 70;
+/** 一度にこれ以上受けたら画面（アリーナ）を揺らす */
+const BIG_HIT_DAMAGE = 20;
+const SHAKE_MS = 120;
+const SHAKE_PX = 6;
 
 interface Buffered {
   t: number;
@@ -61,6 +70,15 @@ export class BattleScene extends Phaser.Scene {
   private statsMe: RobotStats | null = null;
   private controls!: Controls;
   private gfx!: Phaser.GameObjects.Graphics;
+  /** HUD（HP バー）。アリーナの揺れに含めない */
+  private hudGfx!: Phaser.GameObjects.Graphics;
+  /** 床・障害物・機体・弾・演出。大ダメージ時はこのコンテナだけを揺らす */
+  private world!: Phaser.GameObjects.Container;
+  private robotMe!: RobotSprite;
+  private robotOpp!: RobotSprite;
+  private bullets!: ProjectileLayer;
+  /** 直前の snapshot の HP（被弾演出の差分用）。再接続で捨てる */
+  private lastHp = new Map<string, number>();
 
   // 自機予測
   private predicted: PlayerState | null = null;
@@ -112,6 +130,7 @@ export class BattleScene extends Phaser.Scene {
     this.hpLagMe = new HpLag();
     this.hpLagOpp = new HpLag();
     this.debugText = null;
+    this.lastHp = new Map();
 
     // snapshot が来るまではスポーン位置に描く
     const setups = (game.publicState?.players ?? []).flatMap((p, i) => {
@@ -122,12 +141,20 @@ export class BattleScene extends Phaser.Scene {
     });
     this.initialPlayers = createBattleState(setups).players;
 
-    // アリーナ外の余白は床の延長色
+    // アリーナ外の余白は床の延長色（床タイルがあればタイルで覆う）
     this.cameras.main.setBackgroundColor(COLORS.floor);
-    const bg = this.add.graphics();
-    drawArena(bg);
-    if (DEBUG) drawArenaDebug(bg);
+    this.world = this.add.container(0, 0);
+    buildArena(this, this.world, DEBUG);
+    const oppLoadout = game.loadouts?.[this.oppId] ?? {};
+    this.robotOpp = new RobotSprite(this, 0, 0, 'red', oppLoadout).setVisible(false);
+    this.robotMe = new RobotSprite(this, 0, 0, 'blue', myLoadout ?? {}).setVisible(false);
+    this.world.add([this.robotOpp, this.robotMe]);
+    const bulletLayer = this.add.container(0, 0);
+    this.world.add(bulletLayer);
+    this.bullets = new ProjectileLayer(this, bulletLayer);
     this.gfx = this.add.graphics();
+    this.world.add(this.gfx);
+    this.hudGfx = this.add.graphics();
 
     const initialSelf = this.initialPlayers.find((p) => p.id === this.meId);
     this.controls = new Controls(this, () => this.selfRenderPos(), initialSelf?.aimAngle ?? 0);
@@ -169,11 +196,15 @@ export class BattleScene extends Phaser.Scene {
         this.history = [];
         this.predicted = this.prevPredicted = null;
         this.offsetX = this.offsetY = 0;
+        this.lastHp.clear();
       }),
       // 再接続では welcome の後に reveal が届くため、ここで構成を受け取る
       game.on('reveal', (msg) => {
         const l = msg.loadouts[this.meId];
         if (l && !this.statsMe) this.statsMe = computeStats(l);
+        if (l) this.robotMe.setLoadout(l, true);
+        const o = msg.loadouts[this.oppId];
+        if (o) this.robotOpp.setLoadout(o, true);
       }),
       game.on('change', () => {
         this.myName.setText(game.nameOf(this.meId));
@@ -199,6 +230,36 @@ export class BattleScene extends Phaser.Scene {
       this.buffer.shift();
 
     this.reconcile(msg);
+    this.detectHits(msg.players);
+  }
+
+  /** 直前の snapshot から HP が減った機体に被弾演出、0 になったら爆発 */
+  private detectHits(players: readonly PlayerState[]): void {
+    for (const p of players) {
+      const before = this.lastHp.get(p.id);
+      this.lastHp.set(p.id, p.hp);
+      if (before === undefined || p.hp >= before) continue;
+      const isMe = p.id === this.meId;
+      const robot = isMe ? this.robotMe : p.id === this.oppId ? this.robotOpp : null;
+      if (!robot) continue;
+      const dmg = before - p.hp;
+      // 位置は描画中の機体に合わせる（自機は予測位置、相手は補間位置）
+      const x = robot.visible ? robot.x : p.x;
+      const y = robot.visible ? robot.y : p.y;
+      robot.flash(HIT_FLASH_MS);
+      floatText(
+        this,
+        this.world,
+        x,
+        y - p.radius,
+        String(Math.round(dmg)),
+        isMe ? TEXT.danger : TEXT.accent,
+        isMe ? 20 : 24,
+      );
+      if (isMe && dmg >= BIG_HIT_DAMAGE) shake(this, this.world, SHAKE_MS, SHAKE_PX);
+      if (before > 0 && p.hp <= 0)
+        explode(this, this.world, x, y, isMe ? COLORS.me : COLORS.opponent);
+    }
   }
 
   /** lastProcessedInputSeq の位置（snapshot の自機）へ戻し、未確認の入力を再適用する */
@@ -330,35 +391,43 @@ export class BattleScene extends Phaser.Scene {
   private render(aimAngle: number, delta: number): void {
     const g = this.gfx;
     g.clear();
+    this.hudGfx.clear();
     const opp = this.opponentPose();
-    if (opp) drawRobot(g, opp, COLORS.opponent, DEBUG);
+    this.placeRobot(this.robotOpp, opp, g);
     const self = this.selfPose(aimAngle);
-    if (self) drawRobot(g, self, COLORS.me, DEBUG);
+    this.placeRobot(this.robotMe, self, g);
 
     if (this.latest) {
       const age = Math.min(
         (performance.now() - this.latestAt) / 1000,
         MAX_PROJECTILE_EXTRAPOLATION,
       );
-      for (const p of this.latest.projectiles) {
-        drawProjectile(
-          g,
-          { x: p.x + p.vx * age, y: p.y + p.vy * age, radius: p.radius },
-          p.ownerId === this.meId ? SELF_PROJECTILE : OPPONENT_PROJECTILE,
-          DEBUG,
-        );
-      }
+      this.bullets.update(
+        this.latest.projectiles.map((p) => ({
+          id: p.id,
+          x: p.x + p.vx * age,
+          y: p.y + p.vy * age,
+          vx: p.vx,
+          vy: p.vy,
+          radius: p.radius,
+          weapon: game.loadouts?.[p.ownerId]?.weapon ?? null,
+          color: p.ownerId === this.meId ? SELF_PROJECTILE : OPPONENT_PROJECTILE,
+        })),
+        g,
+        DEBUG,
+      );
     }
 
     const players = this.serverPlayers();
     const me = players.find((p) => p.id === this.meId);
     const op = players.find((p) => p.id === this.oppId);
     const v = this.vp;
+    const hud = this.hudGfx;
     if (me) {
       const ratio = me.hp / me.maxHp;
       const lag = this.hpLagMe.update(ratio, delta);
       drawHpBar(
-        g,
+        hud,
         v.left + 24,
         v.top + HUD_TOP + 28,
         HUD_HP_WIDTH,
@@ -373,7 +442,7 @@ export class BattleScene extends Phaser.Scene {
       const lag = this.hpLagOpp.update(ratio, delta);
       const x = v.right - 24 - HUD_HP_WIDTH;
       drawHpBar(
-        g,
+        hud,
         x,
         v.top + HUD_TOP + 28,
         HUD_HP_WIDTH,
@@ -382,6 +451,27 @@ export class BattleScene extends Phaser.Scene {
         lag,
         HUD_HP_HEIGHT,
       );
+    }
+  }
+
+  /** 機体スプライトを姿勢に合わせる。撃破後は薄く残す */
+  private placeRobot(
+    robot: RobotSprite,
+    pose: PlayerState | null,
+    g: Phaser.GameObjects.Graphics,
+  ): void {
+    if (!pose) {
+      robot.setVisible(false);
+      return;
+    }
+    robot
+      .setVisible(true)
+      .setPosition(pose.x, pose.y)
+      .setAim(pose.aimAngle)
+      .setAlpha(pose.alive ? 1 : 0.3);
+    if (DEBUG) {
+      g.lineStyle(1, COLORS.debug, 1);
+      g.strokeCircle(pose.x, pose.y, pose.radius);
     }
   }
 

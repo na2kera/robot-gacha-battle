@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { ARENA } from '../../shared/arena';
 import { TICK_DT } from '../../shared/config';
-import { computeStats, PHASE1_LOADOUT, type RobotStats } from '../../shared/parts';
+import { computeStats, PHASE1_LOADOUT, type RobotStats, type WeaponId } from '../../shared/parts';
 import {
   createBattleState,
   stepBattle,
@@ -12,9 +12,13 @@ import { DEBUG } from '../env';
 import { ja } from '../i18n/ja';
 import { Controls } from '../input/controls';
 import { game } from '../net/game';
-import { drawArena, drawArenaDebug, drawHpBar, drawProjectile, drawRobot, HpLag } from '../ui/draw';
+import { buildArena, ProjectileLayer } from '../ui/arenaView';
+import { drawHpBar, drawRobot, HpLag } from '../ui/draw';
+import { flashImage, floatText } from '../ui/fx';
 import { HUD_TOP, setupLayout } from '../ui/layout';
+import { RobotSprite } from '../ui/RobotSprite';
 import { COLORS, TEXT, textStyle } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { SCENE } from './keys';
 import { remainingColor } from './util';
 
@@ -23,6 +27,10 @@ const TARGET_ID = '__trial_target__';
 const TARGET_RESPAWN_MS = 3000;
 /** 1 フレームで追いつく最大時間（秒） */
 const MAX_FRAME_DT = 0.25;
+/** 操作説明のトーストを出す時間（フェード 0.2 秒を含めて約 2 秒） */
+const HINT_MS = 1800;
+/** 自弾の図形色（画像が無い時） */
+const SELF_PROJECTILE = 0x9cc2ff;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -40,6 +48,13 @@ export class TrialScene extends Phaser.Scene {
   private respawnAt: number | null = null;
   private controls!: Controls;
   private gfx!: Phaser.GameObjects.Graphics;
+  private hudGfx!: Phaser.GameObjects.Graphics;
+  private robot!: RobotSprite;
+  private dummy: Phaser.GameObjects.Image | null = null;
+  private bullets!: ProjectileLayer;
+  private world!: Phaser.GameObjects.Container;
+  private lastTargetHp: number | null = null;
+  private weapon: WeaponId | null = null;
   private timer!: Phaser.GameObjects.Text;
   private opponentText!: Phaser.GameObjects.Text;
   private targetHp!: Phaser.GameObjects.Text;
@@ -76,13 +91,23 @@ export class TrialScene extends Phaser.Scene {
     this.seq = 0;
     this.respawnAt = null;
     this.targetLag = new HpLag();
+    this.lastTargetHp = null;
+    this.weapon = loadout.weapon;
 
-    // アリーナ外の余白は床の延長色
+    // アリーナ外の余白は床の延長色（床タイルがあればタイルで覆う）
     this.cameras.main.setBackgroundColor(COLORS.floor);
-    const bg = this.add.graphics();
-    drawArena(bg);
-    if (DEBUG) drawArenaDebug(bg);
+    this.world = this.add.container(0, 0);
+    buildArena(this, this.world, DEBUG);
+    this.dummy = this.textures.exists('dummy') ? this.add.image(0, 0, 'dummy') : null;
+    if (this.dummy) this.world.add(this.dummy);
+    this.robot = new RobotSprite(this, 0, 0, 'blue', loadout);
+    this.world.add(this.robot);
+    const bulletLayer = this.add.container(0, 0);
+    this.world.add(bulletLayer);
+    this.bullets = new ProjectileLayer(this, bulletLayer);
     this.gfx = this.add.graphics();
+    this.world.add(this.gfx);
+    this.hudGfx = this.add.graphics();
 
     const self = this.state.players[0]!;
     this.controls = new Controls(this, () => this.renderPos(this.meId), self.aimAngle);
@@ -100,6 +125,10 @@ export class TrialScene extends Phaser.Scene {
     });
     this.targetHp = this.add.text(0, 0, '', textStyle(14)).setOrigin(0.5, 1);
     this.ready = true;
+
+    // 開始時に操作説明を短く出す
+    const touch = this.sys.game.device.input.touch;
+    new Toast(this).show(touch ? ja.trial.controlsTouch : ja.trial.controlsPc, 'info', HINT_MS);
   }
 
   override update(time: number, delta: number): void {
@@ -154,11 +183,29 @@ export class TrialScene extends Phaser.Scene {
   private render(delta: number): void {
     const g = this.gfx;
     g.clear();
+    this.hudGfx.clear();
     const target = this.lerpPlayer(TARGET_ID);
     if (target) {
-      drawRobot(g, target, COLORS.target, DEBUG);
+      if (this.dummy) {
+        this.dummy.setPosition(target.x, target.y).setAlpha(target.alive ? 1 : 0.3);
+        if (DEBUG) {
+          g.lineStyle(1, COLORS.debug, 1);
+          g.strokeCircle(target.x, target.y, target.radius);
+        }
+      } else {
+        drawRobot(g, target, COLORS.target, DEBUG);
+      }
+      // 当たった時だけ白く光らせ、減った量を浮かせる
+      if (this.lastTargetHp !== null && target.hp < this.lastTargetHp) {
+        const dmg = Math.round(this.lastTargetHp - target.hp);
+        if (this.dummy) flashImage(this, this.dummy);
+        if (dmg > 0) {
+          floatText(this, this.world, target.x, target.y - target.radius, String(dmg), TEXT.accent);
+        }
+      }
+      this.lastTargetHp = target.hp;
       drawHpBar(
-        g,
+        this.hudGfx,
         target.x - 30,
         target.y - target.radius - 20,
         60,
@@ -173,17 +220,30 @@ export class TrialScene extends Phaser.Scene {
     const me = this.lerpPlayer(this.meId);
     if (me) {
       const aim = this.controls.sample().aimAngle;
-      drawRobot(g, { ...me, aimAngle: aim }, COLORS.me, DEBUG);
+      this.robot
+        .setPosition(me.x, me.y)
+        .setAim(aim)
+        .setAlpha(me.alive ? 1 : 0.3);
+      if (DEBUG) {
+        g.lineStyle(1, COLORS.debug, 1);
+        g.strokeCircle(me.x, me.y, me.radius);
+      }
     }
     const t = this.acc / TICK_DT;
-    for (const p of this.state.projectiles) {
-      drawProjectile(
-        g,
-        { x: p.x + p.vx * TICK_DT * t, y: p.y + p.vy * TICK_DT * t, radius: p.radius },
-        0x9cc2ff,
-        DEBUG,
-      );
-    }
+    this.bullets.update(
+      this.state.projectiles.map((p) => ({
+        id: p.id,
+        x: p.x + p.vx * TICK_DT * t,
+        y: p.y + p.vy * TICK_DT * t,
+        vx: p.vx,
+        vy: p.vy,
+        radius: p.radius,
+        weapon: this.weapon,
+        color: SELF_PROJECTILE,
+      })),
+      g,
+      DEBUG,
+    );
     this.controls.draw();
   }
 }

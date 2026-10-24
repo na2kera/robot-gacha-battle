@@ -102,6 +102,8 @@ export const ja = {
     title: '試運転',
     hint: '相手の完成を待っています。自由に試し撃ちできます',
     target: '的',
+    controlsTouch: '左スティックで移動、右スティックで照準・射撃',
+    controlsPc: 'WASD で移動、マウスで照準・クリックで射撃',
   },
   reveal: {
     title: 'ロボット公開',

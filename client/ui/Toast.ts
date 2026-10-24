@@ -39,7 +39,8 @@ export class Toast {
     onLayout(scene, (v) => this.container.setPosition(v.centerX, v.top + TOP_MARGIN + HEIGHT / 2));
   }
 
-  show(text: string, kind: ToastKind = 'info'): void {
+  /** durationMs はフェードを始めるまでの表示時間 */
+  show(text: string, kind: ToastKind = 'info', durationMs = SHOW_MS): void {
     const look = KIND_COLOR[kind];
     this.label.setText(text).setColor(look.text);
     const w = this.label.width + PAD_X * 2;
@@ -53,7 +54,7 @@ export class Toast {
     this.timer?.remove();
     this.tween?.stop();
     this.container.setVisible(true).setAlpha(1);
-    this.timer = this.scene.time.delayedCall(SHOW_MS, () => {
+    this.timer = this.scene.time.delayedCall(durationMs, () => {
       this.tween = this.scene.tweens.add({
         targets: this.container,
         alpha: 0,

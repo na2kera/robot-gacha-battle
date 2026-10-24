@@ -94,10 +94,21 @@ export const FONT =
 
 export type FontWeight = '500' | '700';
 
+/** 高 DPI の画面で文字が粗くならないよう、端末の画素密度で文字を描く */
+function textResolution(): number {
+  return typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+}
+
 export function textStyle(
   size: number,
   color: string = TEXT.main,
   weight: FontWeight = '500',
 ): Phaser.Types.GameObjects.Text.TextStyle {
-  return { fontFamily: FONT, fontSize: `${size}px`, fontStyle: weight, color };
+  return {
+    fontFamily: FONT,
+    fontSize: `${size}px`,
+    fontStyle: weight,
+    color,
+    resolution: textResolution(),
+  };
 }
