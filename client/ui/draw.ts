@@ -1,49 +1,8 @@
-/** アリーナ・ロボット・弾・HP バー・パネルの図形描画 */
+/** アリーナ・ロボット・弾・HP バーの図形描画 */
 import Phaser from 'phaser';
 import { ARENA } from '../../shared/arena';
 import type { PlayerState, ProjectileState } from '../../shared/simulation';
-import { COLORS, shade } from './theme';
-
-const PANEL_RADIUS = 12;
-const PANEL_BORDER = 2;
-
-/** 角丸 12px・縁 2px・上縁に明るい線のパネル。(x, y) は左上 */
-export function drawPanel(
-  g: Phaser.GameObjects.Graphics,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  border: number = COLORS.panelBorder,
-  fill: number = COLORS.panel,
-): void {
-  g.fillStyle(fill, 1);
-  g.fillRoundedRect(x, y, width, height, PANEL_RADIUS);
-  g.lineStyle(PANEL_BORDER, border, 1);
-  g.strokeRoundedRect(x, y, width, height, PANEL_RADIUS);
-  // 上縁のわずかに明るい線
-  g.lineStyle(1, shade(fill, 0.22), 1);
-  g.lineBetween(
-    x + PANEL_RADIUS,
-    y + PANEL_BORDER + 1,
-    x + width - PANEL_RADIUS,
-    y + PANEL_BORDER + 1,
-  );
-}
-
-/** 中心 (cx, cy) にパネルを置く Graphics を追加する */
-export function addPanel(
-  scene: Phaser.Scene,
-  cx: number,
-  cy: number,
-  width: number,
-  height: number,
-  border?: number,
-): Phaser.GameObjects.Graphics {
-  const g = scene.add.graphics();
-  drawPanel(g, cx - width / 2, cy - height / 2, width, height, border);
-  return g;
-}
+import { COLORS } from './theme';
 
 /**
  * アリーナ。床は camera の背景色（COLORS.floor）と同じ色で、アリーナ外の余白は

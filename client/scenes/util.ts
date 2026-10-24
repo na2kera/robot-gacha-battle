@@ -1,45 +1,10 @@
 import Phaser from 'phaser';
-import { COLORS, css, FONT, TEXT } from '../ui/theme';
 
 /** scene 終了時に購読を解除する */
 export function autoOff(scene: Phaser.Scene, ...offs: (() => void)[]): void {
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
     for (const off of offs) off();
   });
-}
-
-/** Phaser の DOM Element として使う input 要素 */
-export function createTextInput(opts: {
-  placeholder: string;
-  value: string;
-  maxLength: number;
-  width: number;
-  readOnly?: boolean;
-  fontSize?: number;
-}): HTMLInputElement {
-  const el = document.createElement('input');
-  el.type = 'text';
-  el.placeholder = opts.placeholder;
-  el.value = opts.value;
-  el.maxLength = opts.maxLength;
-  el.readOnly = !!opts.readOnly;
-  el.autocomplete = 'off';
-  el.spellcheck = false;
-  Object.assign(el.style, {
-    width: `${opts.width}px`,
-    height: '44px',
-    boxSizing: 'border-box',
-    padding: '0 12px',
-    fontSize: `${opts.fontSize ?? 20}px`,
-    fontFamily: FONT,
-    fontWeight: '500',
-    border: `2px solid ${css(COLORS.panelBorder)}`,
-    borderRadius: '10px',
-    background: css(COLORS.inset),
-    color: TEXT.main,
-    outline: 'none',
-  } satisfies Partial<CSSStyleDeclaration>);
-  return el;
 }
 
 /** 残り秒の表示色。30 秒と 10 秒で強調 */
