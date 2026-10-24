@@ -8,11 +8,12 @@ import { AIM_DEADZONE } from '../../shared/config';
 import type { InputCommand } from '../../shared/input';
 import { isPortrait, onOrientationChange } from '../ui/overlay';
 
-/** スティックの最大半径（画面座標 px） */
+/** スティックの最大半径（ワールド座標。基準 960×540 の箱が画面に収まる縮尺） */
 const STICK_RADIUS = 60;
 
 interface Stick {
   pointerId: number;
+  /** 指を置いた位置（ワールド座標） */
   originX: number;
   originY: number;
   /** -1..1 */
@@ -42,8 +43,8 @@ export class Controls {
     initialAim: number,
   ) {
     this.aimAngle = initialAim;
-    // スティックは画面座標（Pointer.x/y）で描くため、カメラのスクロールに追従させない
-    this.gfx = scene.add.graphics().setDepth(100).setScrollFactor(0);
+    // スティックはワールド座標で描く（Pointer.x/y は canvas の実ピクセルなのでカメラで直す）
+    this.gfx = scene.add.graphics().setDepth(100);
     const input = scene.input;
     // マウス + タッチ 3 本以上を扱う
     if (input.manager.pointersTotal < 4) input.addPointer(4 - input.manager.pointersTotal);
@@ -130,7 +131,7 @@ export class Controls {
         firing = true;
       }
     } else if (this.mouseAim) {
-      // マウスは画面座標で持ち、カメラ（基準の箱を中央に置くためスクロールする）でワールド座標に直す
+      // マウスは canvas の実ピクセルで持ち、カメラ（zoom とスクロールで基準の箱を中央に置く）でワールド座標に直す
       const self = this.getSelfPos();
       const world = this.scene.cameras.main.getWorldPoint(this.mouseX, this.mouseY);
       const dx = world.x - self.x;
@@ -165,7 +166,8 @@ export class Controls {
       return;
     }
     if (!this.enabled) return;
-    const stick: Stick = { pointerId: p.id, originX: p.x, originY: p.y, x: 0, y: 0 };
+    const origin = this.toWorld(p);
+    const stick: Stick = { pointerId: p.id, originX: origin.x, originY: origin.y, x: 0, y: 0 };
     if (p.x < this.scene.scale.gameSize.width / 2) {
       if (!this.move) this.move = stick;
     } else if (!this.aim) {
@@ -180,10 +182,11 @@ export class Controls {
       this.mouseY = p.y;
       return;
     }
+    const pos = this.toWorld(p);
     for (const s of [this.move, this.aim]) {
       if (!s || s.pointerId !== p.id) continue;
-      let dx = (p.x - s.originX) / STICK_RADIUS;
-      let dy = (p.y - s.originY) / STICK_RADIUS;
+      let dx = (pos.x - s.originX) / STICK_RADIUS;
+      let dy = (pos.y - s.originY) / STICK_RADIUS;
       const len = Math.hypot(dx, dy);
       if (len > 1) {
         dx /= len;
@@ -201,6 +204,11 @@ export class Controls {
     }
     if (this.move?.pointerId === p.id) this.move = null;
     if (this.aim?.pointerId === p.id) this.aim = null;
+  }
+
+  /** Pointer（canvas の実ピクセル）をワールド座標に */
+  private toWorld(p: Phaser.Input.Pointer): Phaser.Math.Vector2 {
+    return this.scene.cameras.main.getWorldPoint(p.x, p.y);
   }
 
   private destroy(): void {

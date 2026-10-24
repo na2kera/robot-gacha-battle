@@ -29,6 +29,8 @@ const TARGET_RESPAWN_MS = 3000;
 const MAX_FRAME_DT = 0.25;
 /** 操作説明のトーストを出す時間（フェード 0.2 秒を含めて約 2 秒） */
 const HINT_MS = 1800;
+/** 操作説明トーストの上端（左上の説明文・中央上の残り時間より下に出す） */
+const HINT_TOP = HUD_TOP + 56;
 /** 自弾の図形色（画像が無い時） */
 const SELF_PROJECTILE = 0x9cc2ff;
 
@@ -128,7 +130,11 @@ export class TrialScene extends Phaser.Scene {
 
     // 開始時に操作説明を短く出す
     const touch = this.sys.game.device.input.touch;
-    new Toast(this).show(touch ? ja.trial.controlsTouch : ja.trial.controlsPc, 'info', HINT_MS);
+    new Toast(this, HINT_TOP).show(
+      touch ? ja.trial.controlsTouch : ja.trial.controlsPc,
+      'info',
+      HINT_MS,
+    );
   }
 
   override update(time: number, delta: number): void {

@@ -19,7 +19,7 @@ const SHOW_MS = 2200;
 const FADE_MS = 200;
 const PAD_X = 20;
 const HEIGHT = 44;
-/** 見えている範囲の上端からの距離 */
+/** 見えている範囲の上端からの距離（既定） */
 const TOP_MARGIN = 12;
 
 export class Toast {
@@ -29,14 +29,18 @@ export class Toast {
   private timer: Phaser.Time.TimerEvent | null = null;
   private tween: Phaser.Tweens.Tween | null = null;
 
-  constructor(private scene: Phaser.Scene) {
+  /** topMargin は見えている範囲の上端からトーストの上辺までの距離（HUD と重なる画面で下げる） */
+  constructor(
+    private scene: Phaser.Scene,
+    topMargin = TOP_MARGIN,
+  ) {
     this.bg = scene.add.graphics();
     this.label = scene.add.text(0, 0, '', textStyle(18, TEXT.main, '700')).setOrigin(0.5);
     this.container = scene.add
       .container(0, 0, [this.bg, this.label])
       .setDepth(90)
       .setVisible(false);
-    onLayout(scene, (v) => this.container.setPosition(v.centerX, v.top + TOP_MARGIN + HEIGHT / 2));
+    onLayout(scene, (v) => this.container.setPosition(v.centerX, v.top + topMargin + HEIGHT / 2));
   }
 
   /** durationMs はフェードを始めるまでの表示時間 */

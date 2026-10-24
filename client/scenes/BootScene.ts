@@ -75,6 +75,33 @@ async function fetchManifest(): Promise<Record<string, string>> {
 }
 
 /**
+ * 画像 1 枚を読み込んで decode まで済ませる。Phaser Loader は requestAnimationFrame 駆動で
+ * 背景タブでは止まるため、fetch と Image.decode（タブの表示状態に関係なく進む）を使う。
+ * ImageBitmap は WebGL へのアップロードで Phaser の乗算済みアルファ設定が効かないため使わない
+ */
+async function loadImage(path: string): Promise<HTMLImageElement> {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const url = URL.createObjectURL(await res.blob());
+  try {
+    const img = new Image();
+    img.src = url;
+    if (typeof img.decode === 'function') {
+      await img.decode();
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('decode に失敗しました'));
+      });
+    }
+    return img;
+  } finally {
+    // decode 済みの画素は Image が保持するため、URL はすぐ解放してよい
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
  * 起動直後にフォントと画像を待ち、router へ制御を渡す scene。
  * 画像はドット絵なので読み込み後に最近傍（NEAREST）で拡大縮小するよう設定する。
  * 一覧や画像が読めなくても進行は止めない（警告ログのみ）
@@ -101,20 +128,17 @@ export class BootScene extends Phaser.Scene {
 
   private async loadImages(): Promise<void> {
     const images = await fetchManifest();
-    const keys = Object.keys(images);
-    if (keys.length === 0) return;
-    for (const [key, path] of Object.entries(images)) this.load.image(key, path);
-    this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
-      console.warn('画像を読み込めませんでした', file.key);
-    });
-    await new Promise<void>((resolve) => {
-      this.load.once(Phaser.Loader.Events.COMPLETE, () => resolve());
-      this.load.start();
-    });
-    for (const key of keys) {
-      if (this.textures.exists(key)) {
-        this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
-      }
-    }
+    await Promise.all(
+      Object.entries(images).map(async ([key, path]) => {
+        try {
+          const img = await loadImage(path);
+          if (this.textures.exists(key)) return;
+          const texture = this.textures.addImage(key, img);
+          texture?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+        } catch (e) {
+          console.warn('画像を読み込めませんでした', key, e);
+        }
+      }),
+    );
   }
 }

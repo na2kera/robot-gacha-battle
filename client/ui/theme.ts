@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { renderZoom } from './layout';
 
 /**
  * デザイントークン「カプセル工房」。自分=青、相手=赤は全画面で固定。
@@ -94,9 +95,12 @@ export const FONT =
 
 export type FontWeight = '500' | '700';
 
-/** 高 DPI の画面で文字が粗くならないよう、端末の画素密度で文字を描く */
+/**
+ * 文字はカメラ zoom（canvas の実ピクセル / ワールド座標 1）の解像度で描く。
+ * 1 だとカメラで拡大されて粗くなる。作成時の値で固定される（画面サイズ変更では作り直さない）
+ */
 function textResolution(): number {
-  return typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+  return Math.max(1, renderZoom());
 }
 
 export function textStyle(
