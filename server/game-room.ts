@@ -36,9 +36,11 @@ import {
   CLOSE_NORMAL,
   CLOSE_PROTOCOL_MISMATCH,
   CLOSE_REPLACED,
+  CLOSE_SILENT,
   DRAFTING_MS,
   EMPTY_CLOSE_MS,
   INPUT_MESSAGES_PER_SEC,
+  INPUT_SILENCE_MS,
   MAX_UNAUTHENTICATED_SOCKETS,
   OTHER_MESSAGES_PER_SEC,
   RECONNECT_GRACE_MS,
@@ -111,6 +113,11 @@ interface BattleRuntime {
   /** 両者切断で停止した時刻 */
   pausedAt: number | null;
   lastSnapshot: SnapshotBody | null;
+  /**
+   * playerId → 最後に認証済みメッセージを受け取った実時刻（Date.now）。無通信検知に使う。
+   * tick ループと同じく実時間で測る（clockOffsetMs の影響を受けない）
+   */
+  lastHeardAt: Map<string, number>;
 }
 
 interface RateCounter {
@@ -340,6 +347,8 @@ export class GameRoom extends DurableObject<Env> {
       safeClose(ws, CLOSE_AUTH_FAILED, 'auth_failed');
       return;
     }
+    // 無通信検知用。input に限らず認証済みメッセージなら生存とみなす
+    this.battle?.lastHeardAt.set(player.playerId, Date.now());
     await this.dispatch(ws, player, msg);
   }
 
@@ -598,11 +607,16 @@ export class GameRoom extends DurableObject<Env> {
   private async handleDisconnect(playerId: string): Promise<void> {
     const m = this.meta;
     if (!m) return;
+    const b = this.battle;
+    if (m.phase === 'BATTLE' && b?.disconnectedAt.has(playerId)) {
+      // 無通信で切断扱いにした接続の close が後から届いた等。最初の切断時刻のまま猶予を数える
+      await this.scheduleAlarm();
+      return;
+    }
     console.log(`disconnect ${playerId}`);
     const now = this.now();
     const anyoneConnected = this.players.some((p) => this.isConnected(p.playerId));
     if (!anyoneConnected) m.emptySince = now;
-    const b = this.battle;
     if (m.phase === 'BATTLE' && b) {
       b.disconnectedAt.set(playerId, now);
       b.loop.clearInput(playerId);
@@ -623,6 +637,7 @@ export class GameRoom extends DurableObject<Env> {
     const m = this.meta;
     if (!b || !m || m.phase !== 'BATTLE') return;
     b.disconnectedAt.delete(playerId);
+    b.lastHeardAt.set(playerId, Date.now());
     if (b.pausedAt === null) return;
     const paused = Math.max(0, this.now() - b.pausedAt);
     b.pausedAt = null;
@@ -880,7 +895,15 @@ export class GameRoom extends DurableObject<Env> {
         },
       },
     );
-    this.battle = { marker, loop, disconnectedAt: new Map(), pausedAt: null, lastSnapshot: null };
+    const startedAt = Date.now();
+    this.battle = {
+      marker,
+      loop,
+      disconnectedAt: new Map(),
+      pausedAt: null,
+      lastSnapshot: null,
+      lastHeardAt: new Map(this.players.map((p) => [p.playerId, startedAt])),
+    };
     this.broadcastRoomState();
     this.onSnapshot(matchId, loop.state, loop.lastProcessedInputSeq());
     loop.start();
@@ -904,6 +927,36 @@ export class GameRoom extends DurableObject<Env> {
     };
     b.lastSnapshot = body;
     this.broadcast(body);
+    this.checkSilence();
+  }
+
+  /**
+   * BATTLE 中（tick 進行中）に INPUT_SILENCE_MS を超えて何も届かない接続を切断扱いにする。
+   * snapshot 送信ごとに呼ぶ。両者切断で loop が止まっている間は呼ばれない（猶予は alarm が扱う）
+   */
+  private checkSilence(): void {
+    const b = this.battle;
+    if (!b || b.pausedAt !== null || this.meta?.phase !== 'BATTLE') return;
+    const now = Date.now();
+    for (const p of this.players) {
+      const playerId = p.playerId;
+      if (b.disconnectedAt.has(playerId)) continue;
+      const last = b.lastHeardAt.get(playerId);
+      if (last === undefined || now - last <= INPUT_SILENCE_MS) continue;
+      const sockets = this.openSockets().filter((ws) => {
+        const a = attachmentOf(ws);
+        return a.authenticated && a.playerId === playerId;
+      });
+      // 接続が無ければ close/error の処理（handleDisconnect）に任せる
+      if (sockets.length === 0) continue;
+      console.log(`silent ${playerId} ${now - last}ms`);
+      for (const ws of sockets) {
+        safeClose(ws, CLOSE_SILENT, 'silent');
+        this.goneSockets.add(ws);
+      }
+      // disconnectedAt の記録と pause の判定は最初の await より前に同期的に行われる
+      this.handleDisconnect(playerId).catch(() => console.log('error internal (silent)'));
+    }
   }
 
   /** 試合を終えて RESULT へ。タイマーを必ず止め、BATTLE マーカーを削除する */

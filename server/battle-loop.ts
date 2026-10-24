@@ -55,6 +55,8 @@ export class BattleLoop {
   private lastTime = 0;
   private accumulatedMs = 0;
   private finished = false;
+  /** pause() 済み。コールバック内で pause されたときに再スケジュールしないために持つ */
+  private paused = false;
   private lastLagLogAt = 0;
 
   constructor(
@@ -78,12 +80,14 @@ export class BattleLoop {
 
   start(): void {
     if (this.finished || this.timer !== null) return;
+    this.paused = false;
     this.lastTime = this.clock();
     this.schedule();
   }
 
   /** 両者切断。タイマーを止め、停止中の時間は蓄積しない */
   pause(): void {
+    this.paused = true;
     this.clearTimer();
   }
 
@@ -164,6 +168,8 @@ export class BattleLoop {
       console.log(`tick lag ${Math.round(this.accumulatedMs)}ms`);
     }
     if (snapshotDue) this.callbacks.onSnapshot(this.state, this.lastProcessedInputSeq());
+    // onSnapshot 内で pause/stop された（無通信検知で両者切断になった等）なら再スケジュールしない
+    if (this.finished || this.paused) return;
     this.schedule();
   }
 }

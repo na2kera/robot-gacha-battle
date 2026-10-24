@@ -19,6 +19,11 @@ export const RESULT_TTL_MS = 5 * 60 * 1000;
 export const EMPTY_CLOSE_MS = 5 * 60 * 1000;
 /** 切断からの復帰猶予。フェーズ期限後の未接続待ちにも使う */
 export const RECONNECT_GRACE_MS = 10 * 1000;
+/**
+ * BATTLE 中にこの時間、認証済みメッセージ（input・ping 等）が 1 件も届かなければ切断扱いにする。
+ * タブを閉じても close が DO に届くのが遅い（TCP タイムアウト待ち）場合の検知用
+ */
+export const INPUT_SILENCE_MS = 3 * 1000;
 /** 接続から authenticate までの制限時間 */
 export const AUTH_TIMEOUT_MS = 5 * 1000;
 /** ルームあたりの未認証接続の上限 */
@@ -37,4 +42,6 @@ export const CLOSE_AUTH_TIMEOUT = 4001;
 export const CLOSE_PROTOCOL_MISMATCH = 4002;
 export const CLOSE_AUTH_FAILED = 4003;
 export const CLOSE_REPLACED = 4004;
+/** BATTLE 中の無通信で切断扱いにした */
+export const CLOSE_SILENT = 4005;
 export const CLOSE_NORMAL = 1000;
