@@ -947,8 +947,8 @@ export class GameRoom extends DurableObject<Env> {
         const a = attachmentOf(ws);
         return a.authenticated && a.playerId === playerId;
       });
-      // 接続が無ければ close/error の処理（handleDisconnect）に任せる
-      if (sockets.length === 0) continue;
+      // 接続が無い（送信失敗で goneSockets 入りした後に close が届いていない等）場合も
+      // ここで切断扱いを始める。handleDisconnect は二重呼び出しに耐える
       console.log(`silent ${playerId} ${now - last}ms`);
       for (const ws of sockets) {
         safeClose(ws, CLOSE_SILENT, 'silent');

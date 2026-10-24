@@ -7,6 +7,8 @@ import { router } from './router';
 
 /** Web フォントを待つ上限。超えたらシステムフォントで進む */
 const FONT_TIMEOUT_MS = 2000;
+/** 画像一覧と画像の読み込み全体の上限。超えたら図形描画のまま進む */
+const IMAGE_TIMEOUT_MS = 8000;
 
 /** 文言の値を再帰的に集める。関数の文言は数値 0 を渡して文字を得る */
 function collectText(value: unknown, out: string[]): void {
@@ -83,7 +85,18 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    void Promise.all([waitFonts(), this.loadImages()]).then(() => router.start(this.game));
+    // 画像の読み込みが終わらなくても IMAGE_TIMEOUT_MS で打ち切り、router へ進む（図形描画で遊べる）
+    let timer = 0;
+    const imageTimeout = new Promise<void>((resolve) => {
+      timer = window.setTimeout(() => {
+        console.warn('画像の読み込みが時間内に終わりませんでした');
+        resolve();
+      }, IMAGE_TIMEOUT_MS);
+    });
+    const images = this.loadImages().finally(() => window.clearTimeout(timer));
+    void Promise.all([waitFonts(), Promise.race([images, imageTimeout])]).then(() =>
+      router.start(this.game),
+    );
   }
 
   private async loadImages(): Promise<void> {
