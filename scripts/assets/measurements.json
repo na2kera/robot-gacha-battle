@@ -1,0 +1,492 @@
+{
+  "assetCount": 50,
+  "assembledPreview": {
+    "width": 2448,
+    "height": 3744,
+    "scale": 4,
+    "loadoutsPerTeam": 81,
+    "teams": 2
+  },
+  "assets": [
+    {
+      "key": "td_body_light_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 1492,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 8, 40, 40],
+      "bodyDiameter": [32, 32],
+      "bodyCenter": [24, 24]
+    },
+    {
+      "key": "td_body_light_red",
+      "width": 48,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 1492,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 8, 40, 40],
+      "bodyDiameter": [32, 32],
+      "bodyCenter": [24, 24]
+    },
+    {
+      "key": "part_body_light",
+      "width": 96,
+      "height": 96,
+      "colors": 9,
+      "transparentPixels": 6460,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [20, 16, 76, 82]
+    },
+    {
+      "key": "td_body_standard_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 1180,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [5, 5, 43, 43],
+      "bodyDiameter": [38, 38],
+      "bodyCenter": [24, 24]
+    },
+    {
+      "key": "td_body_standard_red",
+      "width": 48,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 1180,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [5, 5, 43, 43],
+      "bodyDiameter": [38, 38],
+      "bodyCenter": [24, 24]
+    },
+    {
+      "key": "part_body_standard",
+      "width": 96,
+      "height": 96,
+      "colors": 9,
+      "transparentPixels": 5544,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [14, 16, 82, 84]
+    },
+    {
+      "key": "td_body_heavy_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 8,
+      "transparentPixels": 640,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [1, 1, 47, 47],
+      "bodyDiameter": [46, 46],
+      "bodyCenter": [24, 24]
+    },
+    {
+      "key": "td_body_heavy_red",
+      "width": 48,
+      "height": 48,
+      "colors": 8,
+      "transparentPixels": 640,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [1, 1, 47, 47],
+      "bodyDiameter": [46, 46],
+      "bodyCenter": [24, 24]
+    },
+    {
+      "key": "part_body_heavy",
+      "width": 96,
+      "height": 96,
+      "colors": 9,
+      "transparentPixels": 4160,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 10, 88, 90]
+    },
+    {
+      "key": "td_legs_hover_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 1566,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [2, 2, 29, 46]
+    },
+    {
+      "key": "td_legs_hover_red",
+      "width": 48,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 1566,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [2, 2, 29, 46]
+    },
+    {
+      "key": "part_legs_hover",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6560,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 32, 88, 76]
+    },
+    {
+      "key": "td_legs_biped_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 8,
+      "transparentPixels": 1642,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 2, 47, 46]
+    },
+    {
+      "key": "td_legs_biped_red",
+      "width": 48,
+      "height": 48,
+      "colors": 8,
+      "transparentPixels": 1642,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 2, 47, 46]
+    },
+    {
+      "key": "part_legs_biped",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6144,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [20, 14, 80, 86]
+    },
+    {
+      "key": "td_legs_tank_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 6,
+      "transparentPixels": 810,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [5, 0, 41, 48]
+    },
+    {
+      "key": "td_legs_tank_red",
+      "width": 48,
+      "height": 48,
+      "colors": 6,
+      "transparentPixels": 810,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [5, 0, 41, 48]
+    },
+    {
+      "key": "part_legs_tank",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 4704,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [6, 20, 90, 84]
+    },
+    {
+      "key": "td_weapon_machinegun_blue",
+      "width": 64,
+      "height": 48,
+      "colors": 6,
+      "transparentPixels": 2832,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [31, 18, 59, 33],
+      "heavyBodyOverhang": 12,
+      "anchor": [24, 24]
+    },
+    {
+      "key": "td_weapon_machinegun_red",
+      "width": 64,
+      "height": 48,
+      "colors": 6,
+      "transparentPixels": 2832,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [31, 18, 59, 33],
+      "heavyBodyOverhang": 12,
+      "anchor": [24, 24]
+    },
+    {
+      "key": "part_weapon_machinegun",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 6928,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [24, 12, 72, 84]
+    },
+    {
+      "key": "bullet_weapon_machinegun",
+      "width": 12,
+      "height": 12,
+      "colors": 3,
+      "transparentPixels": 108,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [2, 4, 11, 8]
+    },
+    {
+      "key": "td_weapon_cannon_blue",
+      "width": 64,
+      "height": 48,
+      "colors": 6,
+      "transparentPixels": 2752,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [31, 17, 59, 31],
+      "heavyBodyOverhang": 12,
+      "anchor": [24, 24]
+    },
+    {
+      "key": "td_weapon_cannon_red",
+      "width": 64,
+      "height": 48,
+      "colors": 6,
+      "transparentPixels": 2752,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [31, 17, 59, 31],
+      "heavyBodyOverhang": 12,
+      "anchor": [24, 24]
+    },
+    {
+      "key": "part_weapon_cannon",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 6720,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [24, 12, 72, 84]
+    },
+    {
+      "key": "bullet_weapon_cannon",
+      "width": 12,
+      "height": 12,
+      "colors": 4,
+      "transparentPixels": 32,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [0, 0, 12, 12]
+    },
+    {
+      "key": "td_weapon_shotgun_blue",
+      "width": 64,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 2764,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [31, 17, 55, 31],
+      "heavyBodyOverhang": 8,
+      "anchor": [24, 24]
+    },
+    {
+      "key": "td_weapon_shotgun_red",
+      "width": 64,
+      "height": 48,
+      "colors": 7,
+      "transparentPixels": 2764,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [31, 17, 55, 31],
+      "heavyBodyOverhang": 8,
+      "anchor": [24, 24]
+    },
+    {
+      "key": "part_weapon_shotgun",
+      "width": 96,
+      "height": 96,
+      "colors": 7,
+      "transparentPixels": 6336,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [22, 12, 74, 84]
+    },
+    {
+      "key": "bullet_weapon_shotgun",
+      "width": 12,
+      "height": 12,
+      "colors": 3,
+      "transparentPixels": 92,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [2, 2, 10, 10]
+    },
+    {
+      "key": "td_core_vital_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 3,
+      "transparentPixels": 2182,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 18, 30, 30],
+      "emblemSize": [12, 12]
+    },
+    {
+      "key": "td_core_vital_red",
+      "width": 48,
+      "height": 48,
+      "colors": 3,
+      "transparentPixels": 2182,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 18, 30, 30],
+      "emblemSize": [12, 12]
+    },
+    {
+      "key": "part_core_vital",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6216,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 20, 78, 78]
+    },
+    {
+      "key": "td_core_boost_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 2,
+      "transparentPixels": 2248,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 19, 29, 29],
+      "emblemSize": [11, 10]
+    },
+    {
+      "key": "td_core_boost_red",
+      "width": 48,
+      "height": 48,
+      "colors": 2,
+      "transparentPixels": 2248,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 19, 29, 29],
+      "emblemSize": [11, 10]
+    },
+    {
+      "key": "part_core_boost",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6216,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 20, 78, 78]
+    },
+    {
+      "key": "td_core_power_blue",
+      "width": 48,
+      "height": 48,
+      "colors": 3,
+      "transparentPixels": 2209,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 19, 30, 30],
+      "emblemSize": [12, 11]
+    },
+    {
+      "key": "td_core_power_red",
+      "width": 48,
+      "height": 48,
+      "colors": 3,
+      "transparentPixels": 2209,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 19, 30, 30],
+      "emblemSize": [12, 11]
+    },
+    {
+      "key": "part_core_power",
+      "width": 96,
+      "height": 96,
+      "colors": 6,
+      "transparentPixels": 6216,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [18, 20, 78, 78]
+    },
+    {
+      "key": "dummy",
+      "width": 48,
+      "height": 48,
+      "colors": 8,
+      "transparentPixels": 610,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [5, 0, 43, 48]
+    },
+    {
+      "key": "capsule_closed",
+      "width": 128,
+      "height": 128,
+      "colors": 8,
+      "transparentPixels": 9168,
+      "partialAlphaPixels": 3608,
+      "alphaBounds": [16, 20, 112, 116]
+    },
+    {
+      "key": "capsule_open",
+      "width": 128,
+      "height": 128,
+      "colors": 7,
+      "transparentPixels": 9288,
+      "partialAlphaPixels": 3328,
+      "alphaBounds": [16, 6, 112, 122]
+    },
+    {
+      "key": "icon_body",
+      "width": 32,
+      "height": 32,
+      "colors": 9,
+      "transparentPixels": 616,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [5, 6, 28, 28]
+    },
+    {
+      "key": "icon_legs",
+      "width": 32,
+      "height": 32,
+      "colors": 6,
+      "transparentPixels": 689,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [7, 5, 27, 29]
+    },
+    {
+      "key": "icon_weapon",
+      "width": 32,
+      "height": 32,
+      "colors": 7,
+      "transparentPixels": 746,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [8, 4, 24, 28]
+    },
+    {
+      "key": "icon_core",
+      "width": 32,
+      "height": 32,
+      "colors": 6,
+      "transparentPixels": 696,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [6, 7, 26, 26]
+    },
+    {
+      "key": "logo",
+      "width": 640,
+      "height": 200,
+      "colors": 539,
+      "transparentPixels": 49612,
+      "partialAlphaPixels": 122,
+      "alphaBounds": [20, 36, 620, 168]
+    },
+    {
+      "key": "tile_floor",
+      "width": 32,
+      "height": 32,
+      "colors": 4,
+      "transparentPixels": 0,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [0, 0, 32, 32]
+    },
+    {
+      "key": "tile_wall",
+      "width": 32,
+      "height": 32,
+      "colors": 4,
+      "transparentPixels": 0,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [0, 0, 32, 32]
+    },
+    {
+      "key": "stamp_win",
+      "width": 128,
+      "height": 128,
+      "colors": 4,
+      "transparentPixels": 5072,
+      "partialAlphaPixels": 0,
+      "alphaBounds": [4, 4, 124, 124]
+    }
+  ]
+}

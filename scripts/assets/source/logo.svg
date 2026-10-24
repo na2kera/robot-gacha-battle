@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200" viewBox="0 0 640 200">
+  <path d="M40 40H600L620 60V148L600 168H40L20 148V60Z" fill="#172333" />
+  <path
+    d="M42 38H598L616 56V140L598 158H42L24 140V56Z"
+    fill="#293B50"
+    stroke="#3C5068"
+    stroke-width="4"
+  />
+  <path d="M44 44H596" stroke="#647B94" stroke-width="4" />
+  <g fill="#FFD166">
+    <path d="M50 62H64V68H50Z M576 62H590V68H576Z M50 128H64V134H50Z M576 128H590V134H576Z" />
+  </g>
+  <g
+    font-family="Hiragino Maru Gothic ProN, Noto Sans CJK JP, Noto Sans JP, sans-serif"
+    font-weight="700"
+    text-anchor="middle"
+    stroke-linejoin="round"
+    paint-order="stroke fill"
+  >
+    <text
+      x="320"
+      y="88"
+      font-size="30"
+      letter-spacing="7"
+      stroke="#172333"
+      stroke-width="6"
+      fill="#A8D3FF"
+    >
+      ロボット
+    </text>
+    <text
+      x="320"
+      y="136"
+      font-size="44"
+      letter-spacing="3"
+      stroke="#172333"
+      stroke-width="7"
+      fill="#FFF3DC"
+    >
+      ガチャバトル
+    </text>
+  </g>
+  <path d="M280 151H360" stroke="#FFD166" stroke-width="4" />
+</svg>
