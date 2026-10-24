@@ -60,6 +60,8 @@ export class DraftView implements View {
   private redrawBtn!: HTMLButtonElement;
   private note!: HTMLElement;
   private modal: HTMLElement | null = null;
+  private closeModal: ((restoreFocus?: boolean) => void) | null = null;
+  private compareBtn!: HTMLButtonElement;
   private root!: HTMLElement;
 
   /** 画面に反映済みの candidateVersion */
@@ -118,6 +120,7 @@ export class DraftView implements View {
     this.primaryBtn = button('', () => this.onPrimary(), 'primary', 'btn-main');
     this.redrawBtn = button(ja.draft.redraw, () => this.onRedraw(), 'danger');
     this.note = el('p', { class: 'note', text: ja.draft.redrawNote });
+    this.compareBtn = button(ja.draft.compare, () => this.openCompare(), 'secondary', 'btn-small');
 
     this.root = el('div', { class: 'view draft' }, [
       el('div', { class: 'draft-top' }, [el('span'), this.timer, this.opponent]),
@@ -130,7 +133,7 @@ export class DraftView implements View {
           this.primaryBtn,
           this.redrawBtn,
           this.note,
-          button(ja.draft.compare, () => this.openCompare(), 'secondary', 'btn-small'),
+          this.compareBtn,
         ]),
       ]),
     ]);
@@ -145,6 +148,7 @@ export class DraftView implements View {
   }
 
   unmount(): void {
+    this.closeModal?.(false);
     this.cancelAnim();
     window.clearInterval(this.tick);
     this.offDraft?.();
@@ -367,25 +371,45 @@ export class DraftView implements View {
         ...ids.map((id) => el('td', { text: partStatRows(this.tab, id)[row]![1] })),
       ]),
     );
-    const close = () => {
+    // Escape・背景クリック・「閉じる」で閉じ、フォーカスを「比較表」ボタンへ戻す
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close();
+      }
+    };
+    const close = (restoreFocus = true) => {
+      document.removeEventListener('keydown', onKey);
       this.modal?.remove();
       this.modal = null;
+      this.closeModal = null;
+      if (restoreFocus && this.compareBtn.isConnected) this.compareBtn.focus();
     };
-    this.modal = el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' }, [
-      el('div', { class: 'panel modal-box' }, [
-        el('h2', {
-          class: 'modal-title',
-          text: `${ja.draft.partNames[this.tab]} ${ja.draft.compare}`,
-        }),
-        el('div', { class: 'modal-scroll' }, [
-          el('table', { class: 'compare' }, [el('thead', {}, [head]), el('tbody', {}, body)]),
+    const closeBtn = button(ja.draft.close, () => close(), 'secondary');
+    const titleId = 'compare-title';
+    this.modal = el(
+      'div',
+      { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
+      [
+        el('div', { class: 'panel modal-box' }, [
+          el('h2', {
+            class: 'modal-title',
+            id: titleId,
+            text: `${ja.draft.partNames[this.tab]} ${ja.draft.compare}`,
+          }),
+          el('div', { class: 'modal-scroll' }, [
+            el('table', { class: 'compare' }, [el('thead', {}, [head]), el('tbody', {}, body)]),
+          ]),
+          closeBtn,
         ]),
-        button(ja.draft.close, close, 'secondary'),
-      ]),
-    ]);
+      ],
+    );
     this.modal.addEventListener('click', (e) => {
       if (e.target === this.modal) close();
     });
+    document.addEventListener('keydown', onKey);
+    this.closeModal = close;
     this.root.append(this.modal);
+    closeBtn.focus();
   }
 }

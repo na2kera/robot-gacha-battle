@@ -25,6 +25,9 @@ export const HUD_TOP = 16;
 /** devicePixelRatio の上限（これ以上は描画負荷に見合わない） */
 const MAX_DPR = 3;
 
+/** canvas の実ピクセル総数の上限（2560×1600 相当）。大きい画面では dpr を下げて収める */
+export const MAX_CANVAS_PIXELS = 2560 * 1600;
+
 /** 見えている範囲（ワールド座標） */
 export interface Viewport {
   left: number;
@@ -87,8 +90,19 @@ export function renderZoom(): number {
   return typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
 }
 
-function currentDpr(): number {
-  return Math.min(window.devicePixelRatio || 1, MAX_DPR);
+/** Text の描画解像度。カメラ zoom に合わせる（1 未満にはしない） */
+export function textResolution(): number {
+  return Math.max(1, renderZoom());
+}
+
+/**
+ * canvas に使う dpr（純粋関数）。devicePixelRatio を MAX_DPR で抑え、さらに
+ * 実ピクセルの総数（cssW×cssH×dpr²）が MAX_CANVAS_PIXELS を超えないように下げる
+ */
+export function canvasDpr(devicePixelRatio: number, cssW: number, cssH: number): number {
+  const dpr = Math.min(devicePixelRatio || 1, MAX_DPR);
+  const area = Math.max(cssW, 1) * Math.max(cssH, 1);
+  return Math.min(dpr, Math.sqrt(MAX_CANVAS_PIXELS / area));
 }
 
 /**
@@ -106,7 +120,7 @@ export function setupHiDpi(game: Phaser.Game): void {
     const cssW = scale.parentSize.width;
     const cssH = scale.parentSize.height;
     if (cssW <= 0 || cssH <= 0) return;
-    const dpr = currentDpr();
+    const dpr = canvasDpr(window.devicePixelRatio, cssW, cssH);
     const w = Math.max(1, Math.round(cssW * dpr));
     const h = Math.max(1, Math.round(cssH * dpr));
     currentZoom = computeViewport(w, h).zoom;
@@ -156,13 +170,33 @@ export function onLayout(scene: Phaser.Scene, layout: (v: Viewport) => void): Vi
   return v;
 }
 
+/** Text（Container の中も含む）の描画解像度を今のカメラ zoom に合わせ直す */
+export function refreshTextResolution(scene: Phaser.Scene): void {
+  const resolution = textResolution();
+  const visit = (objects: readonly Phaser.GameObjects.GameObject[]) => {
+    for (const obj of objects) {
+      if (obj instanceof Phaser.GameObjects.Text) {
+        if (obj.style.resolution !== resolution) obj.setResolution(resolution);
+      } else if (obj instanceof Phaser.GameObjects.Container) {
+        visit(obj.list);
+      }
+    }
+  };
+  visit(scene.children.list);
+}
+
 /**
  * scene の create の最初で呼ぶ。カメラを基準の箱の中央に合わせ（画面サイズ変更時も）、
- * layout があれば今すぐと画面サイズ変更のたびに呼ぶ
+ * layout があれば今すぐと画面サイズ変更のたびに呼ぶ。
+ * 画面サイズ・dpr の変更時は scene 内の Text の描画解像度も合わせ直す
+ * （作成時の解像度のままだと、拡大した画面で文字がぼやける / 縮小時に無駄に重い）
  */
 export function setupLayout(scene: Phaser.Scene, layout?: (v: Viewport) => void): Viewport {
+  let first = true;
   return onLayout(scene, (v) => {
     centerCamera(scene, v);
     layout?.(v);
+    if (!first) refreshTextResolution(scene);
+    first = false;
   });
 }

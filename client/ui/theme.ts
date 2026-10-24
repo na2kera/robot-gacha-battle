@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { renderZoom } from './layout';
+import { textResolution } from './layout';
 
 /**
  * デザイントークン「カプセル工房」。自分=青、相手=赤は全画面で固定。
@@ -97,12 +97,9 @@ export type FontWeight = '500' | '700';
 
 /**
  * 文字はカメラ zoom（canvas の実ピクセル / ワールド座標 1）の解像度で描く。
- * 1 だとカメラで拡大されて粗くなる。作成時の値で固定される（画面サイズ変更では作り直さない）
+ * 1 だとカメラで拡大されて粗くなる。画面サイズ・dpr が変わったら setupLayout が
+ * scene 内の Text に setResolution で合わせ直す（layout.ts の refreshTextResolution）
  */
-function textResolution(): number {
-  return Math.max(1, renderZoom());
-}
-
 export function textStyle(
   size: number,
   color: string = TEXT.main,

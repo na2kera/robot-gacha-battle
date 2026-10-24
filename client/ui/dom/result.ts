@@ -4,7 +4,17 @@ import { PART_TYPES, type ResultMessage } from '../../../shared/protocol';
 import { ja } from '../../i18n/ja';
 import { game } from '../../net/game';
 import { partName } from '../partInfo';
-import { button, el, partImg, pixelImg, RobotView, setText, setVariant, type Side } from './kit';
+import {
+  button,
+  el,
+  NameTag,
+  partImg,
+  pixelImg,
+  RobotView,
+  setText,
+  setVariant,
+  type Side,
+} from './kit';
 import type { View } from './types';
 
 export class ResultView implements View {
@@ -112,7 +122,10 @@ export class ResultView implements View {
         : [];
       const winner = !aborted && r.winnerId === p.playerId;
       return el('div', { class: `panel card ${side}` }, [
-        el('div', { class: 'card-head' }, [el('div', { class: 'card-name', text: p.name }), hp]),
+        el('div', { class: 'card-head' }, [
+          new NameTag('card-name').set(p.name, p.playerId === meId).el,
+          hp,
+        ]),
         el('div', { class: 'card-body' }, [
           el('div', { class: 'card-robot' }, [robot.el]),
           el('ul', { class: 'card-parts' }, parts),

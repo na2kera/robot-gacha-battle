@@ -348,27 +348,186 @@
   filter: brightness(0.25) opacity(0.6);
 }
 
+/* ---- プレイヤー名（NameTag）と「あなた」のチップ ---- */
+.name-tag {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--side);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.you-chip {
+  flex: none;
+  padding: 0 8px;
+  border: 1px solid var(--side);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--side) 22%, transparent);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.you-chip.off {
+  display: none;
+}
+
+.name-stack .you-chip.off {
+  display: block;
+  visibility: hidden;
+}
+
+/* 名前の下にチップを置き、名前は箱の幅で 12 文字が 1 行に入る大きさまで縮める */
+.name-stack {
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  width: 100%;
+  container-type: inline-size;
+}
+
+.name-stack .name-text {
+  max-width: 100%;
+  font-size: min(var(--name-size), calc(100cqi / 12.4));
+}
+
 /* ---- ホーム ---- */
 .home {
   align-items: center;
+  /* ロゴと下のブロックを縦の中央に寄せ、間隔は画面の高さに応じて抑える */
+  justify-content: center;
+  gap: clamp(8px, 4cqh, 40px);
 }
 
+/*
+ * ロゴ（HTML 文字）。金属プレート風の枠は 2 枚重ね:
+ * 外側（h1）が縁の色、内側（.logo-plate）が板の色で、どちらも角を clip-path で切り落とす
+ */
 .home-logo {
-  margin: 0;
+  --chamfer: 0.42em;
+  --rim: 3px;
   flex: none;
-  line-height: 0;
+  margin: 0;
+  padding: var(--rim);
+  font-size: clamp(24px, min(5.5cqh, 4.4cqw), 52px);
+  font-weight: 700;
+  line-height: 1.1;
+  background: linear-gradient(180deg, #5b7391, #3c5068 55%, #2a3a4e);
+  clip-path: polygon(
+    var(--chamfer) 0,
+    calc(100% - var(--chamfer)) 0,
+    100% var(--chamfer),
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    var(--chamfer) 100%,
+    0 calc(100% - var(--chamfer)),
+    0 var(--chamfer)
+  );
+  filter: drop-shadow(0 4px 0 var(--shadow));
 }
 
-.logo {
-  display: block;
-  width: auto;
-  height: clamp(56px, 20cqh, 180px);
-  max-width: 70cqw;
-  object-fit: contain;
+.logo-plate {
+  --cut: calc(var(--chamfer) - var(--rim) * 0.4);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: clamp(240px, 32cqw, 480px);
+  padding: 0.3em 1.5em 0.34em;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 45%),
+    linear-gradient(180deg, #2a3d54, #22324a);
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+}
+
+/* 四隅の黄色いリベット（1 つの疑似要素に 4 つの帯を描く） */
+.logo-plate::before {
+  --rivet: linear-gradient(var(--accent), var(--accent));
+  content: '';
+  position: absolute;
+  inset: 0.32em 0.42em;
+  background:
+    var(--rivet) left top / 0.36em 0.1em no-repeat,
+    var(--rivet) right top / 0.36em 0.1em no-repeat,
+    var(--rivet) left bottom / 0.36em 0.1em no-repeat,
+    var(--rivet) right bottom / 0.36em 0.1em no-repeat;
+  pointer-events: none;
+}
+
+/* 上辺の明るい線 */
+.logo-plate::after {
+  content: '';
+  position: absolute;
+  top: 0.1em;
+  left: var(--cut);
+  right: var(--cut);
+  height: 2px;
+  background: rgba(169, 181, 196, 0.45);
+  pointer-events: none;
+}
+
+.logo-top,
+.logo-main {
+  position: relative;
+  white-space: nowrap;
+  /* 薄い縁取り（4 方向） */
+  text-shadow:
+    1px 0 0 var(--shadow),
+    -1px 0 0 var(--shadow),
+    0 1px 0 var(--shadow),
+    0 -1px 0 var(--shadow);
+}
+
+.logo-top {
+  font-size: 0.5em;
+  letter-spacing: 0.4em;
+  /* 字間の分だけ右にずれるのを戻す */
+  margin-right: -0.4em;
+  color: #9fc0f0;
+}
+
+.logo-main {
+  padding-bottom: 0.16em;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+/* 下線のアクセント */
+.logo-main::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 1.6em;
+  height: 0.08em;
+  min-height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: translateX(-50%);
 }
 
 .home-main {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   gap: clamp(16px, 5cqw, 80px);
@@ -553,18 +712,35 @@
 
 .bay-info {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
 }
 
 .bay-name {
-  overflow: hidden;
-  color: var(--side);
-  font-size: clamp(20px, 5cqh, 30px);
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  --name-size: clamp(20px, 5cqh, 30px);
+}
+
+/*
+ * 縦に余裕のある画面では機体の下に名前を置き、名前に整備台の幅を使う
+ * （横並びのままだと 12 文字の名前が小さくなりすぎる）
+ */
+@container ui (min-height: 560px) {
+  .bay {
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .bay-info {
+    flex: none;
+    align-items: center;
+    width: 100%;
+  }
+
+  .bay-name {
+    align-items: center;
+  }
 }
 
 .bay.empty .bay-name {
@@ -956,13 +1132,8 @@
 }
 
 .stand-name {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--side);
-  font-size: clamp(20px, 6cqh, 32px);
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  --name-size: clamp(20px, 6cqh, 32px);
+  align-items: center;
 }
 
 .stand-robot {
@@ -1095,25 +1266,21 @@
   padding: var(--pad);
 }
 
+/* 名前が長くて HP が横に入らなければ、HP を次の行へ折り返す */
 .card-head {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   align-items: center;
 }
 
 .card-name {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--side);
   font-size: clamp(18px, 5cqh, 28px);
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .hp {
   display: flex;
-  flex: 1;
+  flex: 1 0 160px;
   gap: 8px;
   align-items: center;
 }

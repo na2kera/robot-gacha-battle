@@ -1,4 +1,4 @@
-/** ホーム: ロゴ、青い完成機、名前入力・部屋を作る・コードで参加 */
+/** ホーム: 文字のロゴ、青い完成機、名前入力・部屋を作る・コードで参加 */
 import { validatePlayerName } from '../../../shared/protocol';
 import { URL_ROOM_CODE } from '../../env';
 import { ja } from '../../i18n/ja';
@@ -73,8 +73,12 @@ export class HomeView implements View {
 
     root.append(
       el('div', { class: 'view home' }, [
-        el('h1', { class: 'home-logo' }, [
-          el('img', { class: 'logo', src: '/img/logo.png', alt: ja.title, draggable: 'false' }),
+        // ロゴは画像ではなく文字で組む（見た目は ui.css の .home-logo）
+        el('h1', { class: 'home-logo', 'aria-label': ja.title }, [
+          el('span', { class: 'logo-plate', 'aria-hidden': 'true' }, [
+            el('span', { class: 'logo-top', text: ja.home.logoTop }),
+            el('span', { class: 'logo-main', text: ja.home.logoMain }),
+          ]),
         ]),
         el('div', { class: 'home-main' }, [
           el('div', { class: 'home-hero' }, [el('span', { class: 'hero-shadow' }), robot.el]),

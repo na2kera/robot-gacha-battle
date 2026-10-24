@@ -56,20 +56,23 @@ async function waitFonts(): Promise<void> {
 /** 画像一覧。形式は {"images": {"key": "img/xxx.png"}} */
 const MANIFEST_URL = '/img/manifest.json';
 
-async function fetchManifest(): Promise<Record<string, string>> {
+/** manifest にあっても Phaser のテクスチャにしない画像（DOM 側だけで使う / 使わなくなった） */
+const SKIP_KEYS = new Set(['logo']);
+
+async function fetchManifest(signal: AbortSignal): Promise<Record<string, string>> {
   try {
-    const res = await fetch(MANIFEST_URL, { cache: 'no-cache' });
+    const res = await fetch(MANIFEST_URL, { cache: 'no-cache', signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json: unknown = await res.json();
     const images = (json as { images?: unknown } | null)?.images;
     if (!images || typeof images !== 'object') throw new Error('images がありません');
     const out: Record<string, string> = {};
     for (const [key, path] of Object.entries(images)) {
-      if (typeof path === 'string') out[key] = path;
+      if (typeof path === 'string' && !SKIP_KEYS.has(key)) out[key] = path;
     }
     return out;
   } catch (e) {
-    console.warn('画像一覧を読み込めませんでした', e);
+    if (!signal.aborted) console.warn('画像一覧を読み込めませんでした', e);
     return {};
   }
 }
@@ -79,8 +82,8 @@ async function fetchManifest(): Promise<Record<string, string>> {
  * 背景タブでは止まるため、fetch と Image.decode（タブの表示状態に関係なく進む）を使う。
  * ImageBitmap は WebGL へのアップロードで Phaser の乗算済みアルファ設定が効かないため使わない
  */
-async function loadImage(path: string): Promise<HTMLImageElement> {
-  const res = await fetch(path);
+async function loadImage(path: string, signal: AbortSignal): Promise<HTMLImageElement> {
+  const res = await fetch(path, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const url = URL.createObjectURL(await res.blob());
   try {
@@ -112,31 +115,36 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    // 画像の読み込みが終わらなくても IMAGE_TIMEOUT_MS で打ち切り、router へ進む（図形描画で遊べる）
+    // 画像の読み込みが終わらなくても IMAGE_TIMEOUT_MS で打ち切り、router へ進む（図形描画で遊べる）。
+    // 打ち切ったら fetch を中断し、decode が後から終わってもテクスチャに登録しない
+    // （遊んでいる途中で図形描画から画像へ切り替わらないようにする）
+    const abort = new AbortController();
     let timer = 0;
     const imageTimeout = new Promise<void>((resolve) => {
       timer = window.setTimeout(() => {
         console.warn('画像の読み込みが時間内に終わりませんでした');
+        abort.abort();
         resolve();
       }, IMAGE_TIMEOUT_MS);
     });
-    const images = this.loadImages().finally(() => window.clearTimeout(timer));
+    const images = this.loadImages(abort.signal).finally(() => window.clearTimeout(timer));
     void Promise.all([waitFonts(), Promise.race([images, imageTimeout])]).then(() =>
       router.start(this.game),
     );
   }
 
-  private async loadImages(): Promise<void> {
-    const images = await fetchManifest();
+  private async loadImages(signal: AbortSignal): Promise<void> {
+    const images = await fetchManifest(signal);
     await Promise.all(
       Object.entries(images).map(async ([key, path]) => {
+        if (signal.aborted) return;
         try {
-          const img = await loadImage(path);
-          if (this.textures.exists(key)) return;
+          const img = await loadImage(path, signal);
+          if (signal.aborted || this.textures.exists(key)) return;
           const texture = this.textures.addImage(key, img);
           texture?.setFilter(Phaser.Textures.FilterMode.NEAREST);
         } catch (e) {
-          console.warn('画像を読み込めませんでした', key, e);
+          if (!signal.aborted) console.warn('画像を読み込めませんでした', key, e);
         }
       }),
     );

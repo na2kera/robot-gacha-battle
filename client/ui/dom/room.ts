@@ -2,13 +2,13 @@
 import type { PlayerPublicInfo } from '../../../shared/protocol';
 import { ja } from '../../i18n/ja';
 import { game } from '../../net/game';
-import { button, el, Lamps, RobotView, setText, setVariant, type Side } from './kit';
+import { button, el, Lamps, NameTag, RobotView, setText, setVariant, type Side } from './kit';
 import type { View } from './types';
 import { showToast } from './view';
 
 interface Bay {
   root: HTMLElement;
-  name: HTMLElement;
+  name: NameTag;
   state: HTMLElement;
   lamp: Lamps;
 }
@@ -82,12 +82,12 @@ export class RoomView implements View {
   private makeBay(side: Side): Bay {
     const robot = new RobotView(side);
     robot.setLoadout(null);
-    const name = el('div', { class: 'bay-name' });
+    const name = new NameTag('bay-name name-stack');
     const state = el('div', { class: 'bay-state' });
     const lamp = new Lamps(1, 'bay-lamp');
     const root = el('div', { class: `panel bay ${side}` }, [
       el('div', { class: 'bay-stand' }, [robot.el]),
-      el('div', { class: 'bay-info' }, [name, el('div', { class: 'row' }, [lamp.el, state])]),
+      el('div', { class: 'bay-info' }, [name.el, el('div', { class: 'row' }, [lamp.el, state])]),
     ]);
     return { root, name, state, lamp };
   }
@@ -104,13 +104,13 @@ export class RoomView implements View {
       const p = ordered[i];
       bay.root.classList.toggle('empty', !p);
       if (!p) {
-        setText(bay.name, ja.room.waitingPlayer);
+        bay.name.set(ja.room.waitingPlayer);
         setText(bay.state, '');
         bay.lamp.set(0);
         bay.root.classList.remove('is-ready');
         return;
       }
-      setText(bay.name, i === 0 ? `${p.name}${ja.room.you}` : p.name);
+      bay.name.set(p.name, i === 0);
       const conn = p.connected ? ja.room.connected : ja.room.disconnected;
       const ready = p.ready ? ja.room.ready : ja.room.notReady;
       setText(bay.state, `${conn} / ${ready}`);

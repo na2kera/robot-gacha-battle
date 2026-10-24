@@ -16,8 +16,13 @@ export const ja = {
     remaining: (sec: number) => `残り ${sec}秒`,
     opponentConfirmed: (n: number) => `相手の確定: ${n}/4`,
     rotate: '横向きにしてください',
+    /** 自分の名前に添えるバッジ */
+    you: 'あなた',
   },
   home: {
+    /** ロゴの上段（小）と下段（大）。続けて読むと ja.title */
+    logoTop: 'ロボット',
+    logoMain: 'ガチャバトル',
     nameLabel: '名前（1〜12文字）',
     namePlaceholder: 'なまえ',
     createRoom: '部屋を作る',
@@ -43,7 +48,6 @@ export const ja = {
     copy: 'コピー',
     copied: 'コピーしました',
     copyFailed: 'コピーできませんでした。URLを選択してコピーしてください',
-    you: '（あなた）',
     waitingPlayer: '参加待ち…',
     connected: '接続中',
     disconnected: '切断中',

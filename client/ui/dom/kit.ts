@@ -3,6 +3,7 @@
  * （プレイヤー名などを innerHTML に入れない）
  */
 import type { Loadout, PartId, PartType } from '../../../shared/parts';
+import { ja } from '../../i18n/ja';
 import type { ButtonVariant } from './types';
 
 type Child = Node | string | null | undefined | false;
@@ -177,3 +178,28 @@ export class RobotView {
 
 /** 部位の重ね順（公開の装着演出で使う） */
 export const ROBOT_LAYERS = LAYERS;
+
+/**
+ * プレイヤー名の表示。自分なら名前の右に「あなた」のチップを添える（名前の文字列には足さない）。
+ * 名前は 1 行で、入りきらない時だけ省略記号にする。色は親の --side
+ */
+export class NameTag {
+  readonly el: HTMLElement;
+  private text: HTMLElement;
+  private chip: HTMLElement;
+
+  constructor(className = '') {
+    this.text = el('span', { class: 'name-text' });
+    this.chip = el('span', { class: 'you-chip off', text: ja.common.you });
+    this.el = el('div', { class: `name-tag ${className}`.trim() }, [this.text, this.chip]);
+  }
+
+  set(name: string, me = false): this {
+    setText(this.text, name);
+    // 省略された時に全文を見られるようにする
+    if (this.text.title !== name) this.text.title = name;
+    // 縦積み（.name-stack）では左右の高さを揃えるため、消さずに見えなくするだけにする（ui.css）
+    this.chip.classList.toggle('off', !me);
+    return this;
+  }
+}
