@@ -9,7 +9,8 @@ import { DEBUG } from '../env';
 import { ja } from '../i18n/ja';
 import { Controls } from '../input/controls';
 import { game } from '../net/game';
-import { drawArena, drawArenaDebug, drawHpBar, drawProjectile, drawRobot } from '../ui/draw';
+import { drawArena, drawArenaDebug, drawHpBar, drawProjectile, drawRobot, HpLag } from '../ui/draw';
+import { HUD_TOP, setupLayout, type Viewport } from '../ui/layout';
 import { COLORS, TEXT, textStyle } from '../ui/theme';
 import { SCENE } from './keys';
 import { autoOff } from './util';
@@ -35,6 +36,9 @@ const MAX_PROJECTILE_EXTRAPOLATION = 0.1;
 
 const SELF_PROJECTILE = 0x9cc2ff;
 const OPPONENT_PROJECTILE = 0xffa0a0;
+/** HUD の HP バーの幅・高さ */
+const HUD_HP_WIDTH = 260;
+const HUD_HP_HEIGHT = 14;
 
 interface Buffered {
   t: number;
@@ -83,6 +87,9 @@ export class BattleScene extends Phaser.Scene {
   private timer!: Phaser.GameObjects.Text;
   private center!: Phaser.GameObjects.Text;
   private debugText: Phaser.GameObjects.Text | null = null;
+  private hpLagMe = new HpLag();
+  private hpLagOpp = new HpLag();
+  private vp!: Viewport;
 
   constructor() {
     super(SCENE.battle);
@@ -102,6 +109,9 @@ export class BattleScene extends Phaser.Scene {
     this.latest = null;
     this.buffer = [];
     this.clockEst = null;
+    this.hpLagMe = new HpLag();
+    this.hpLagOpp = new HpLag();
+    this.debugText = null;
 
     // snapshot が来るまではスポーン位置に描く
     const setups = (game.publicState?.players ?? []).flatMap((p, i) => {
@@ -112,6 +122,8 @@ export class BattleScene extends Phaser.Scene {
     });
     this.initialPlayers = createBattleState(setups).players;
 
+    // アリーナ外の余白は床の延長色
+    this.cameras.main.setBackgroundColor(COLORS.floor);
     const bg = this.add.graphics();
     drawArena(bg);
     if (DEBUG) drawArenaDebug(bg);
@@ -120,19 +132,19 @@ export class BattleScene extends Phaser.Scene {
     const initialSelf = this.initialPlayers.find((p) => p.id === this.meId);
     this.controls = new Controls(this, () => this.selfRenderPos(), initialSelf?.aimAngle ?? 0);
 
-    const w = this.scale.width;
-    this.myName = this.add.text(24, 10, game.nameOf(this.meId), textStyle(18, TEXT.me));
+    // HUD は見えている範囲の端に置き、画面サイズ変更で置き直す（下の setupLayout）
+    this.myName = this.add.text(0, 0, game.nameOf(this.meId), textStyle(18, TEXT.me, '700'));
     this.oppName = this.add
-      .text(w - 24, 10, game.nameOf(this.oppId), textStyle(18, TEXT.opponent))
+      .text(0, 0, game.nameOf(this.oppId), textStyle(18, TEXT.opponent, '700'))
       .setOrigin(1, 0);
-    this.timer = this.add.text(w / 2, 26, '', textStyle(26)).setOrigin(0.5);
+    this.timer = this.add.text(0, 0, '', textStyle(26, TEXT.main, '700')).setOrigin(0.5);
     this.center = this.add
-      .text(w / 2, this.scale.height / 2, '', { ...textStyle(96), fontStyle: 'bold' })
+      .text(0, 0, '', textStyle(96, TEXT.main, '700'))
       .setOrigin(0.5)
       .setDepth(60);
     if (DEBUG) {
       this.debugText = this.add
-        .text(w - 16, 64, '', {
+        .text(0, 0, '', {
           ...textStyle(14, '#ffe066'),
           align: 'right',
           backgroundColor: '#000000aa',
@@ -140,6 +152,14 @@ export class BattleScene extends Phaser.Scene {
         .setOrigin(1, 0)
         .setDepth(70);
     }
+    setupLayout(this, (v) => {
+      this.vp = v;
+      this.myName.setPosition(v.left + 24, v.top + HUD_TOP);
+      this.oppName.setPosition(v.right - 24, v.top + HUD_TOP);
+      this.timer.setPosition(v.centerX, v.top + HUD_TOP + 16);
+      this.center.setPosition(v.centerX, v.centerY);
+      this.debugText?.setPosition(v.right - 16, v.top + HUD_TOP + 54);
+    });
 
     autoOff(
       this,
@@ -249,7 +269,7 @@ export class BattleScene extends Phaser.Scene {
     this.offsetY *= decay;
     if (Math.hypot(this.offsetX, this.offsetY) < 0.1) this.offsetX = this.offsetY = 0;
 
-    this.render(sample.aimAngle);
+    this.render(sample.aimAngle, delta);
     this.updateHud(phase);
     this.controls.draw();
   }
@@ -307,7 +327,7 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
-  private render(aimAngle: number): void {
+  private render(aimAngle: number, delta: number): void {
     const g = this.gfx;
     g.clear();
     const opp = this.opponentPose();
@@ -333,9 +353,36 @@ export class BattleScene extends Phaser.Scene {
     const players = this.serverPlayers();
     const me = players.find((p) => p.id === this.meId);
     const op = players.find((p) => p.id === this.oppId);
-    const w = this.scale.width;
-    if (me) drawHpBar(g, 24, 38, 260, me.hp / me.maxHp, COLORS.me);
-    if (op) drawHpBar(g, w - 24 - 260, 38, 260, op.hp / op.maxHp, COLORS.opponent);
+    const v = this.vp;
+    if (me) {
+      const ratio = me.hp / me.maxHp;
+      const lag = this.hpLagMe.update(ratio, delta);
+      drawHpBar(
+        g,
+        v.left + 24,
+        v.top + HUD_TOP + 28,
+        HUD_HP_WIDTH,
+        ratio,
+        COLORS.me,
+        lag,
+        HUD_HP_HEIGHT,
+      );
+    }
+    if (op) {
+      const ratio = op.hp / op.maxHp;
+      const lag = this.hpLagOpp.update(ratio, delta);
+      const x = v.right - 24 - HUD_HP_WIDTH;
+      drawHpBar(
+        g,
+        x,
+        v.top + HUD_TOP + 28,
+        HUD_HP_WIDTH,
+        ratio,
+        COLORS.opponent,
+        lag,
+        HUD_HP_HEIGHT,
+      );
+    }
   }
 
   private updateHud(phase: string | null): void {

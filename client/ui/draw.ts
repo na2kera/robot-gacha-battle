@@ -1,17 +1,66 @@
-/** アリーナ・ロボット・弾・HP バーの図形描画 */
-import type Phaser from 'phaser';
+/** アリーナ・ロボット・弾・HP バー・パネルの図形描画 */
+import Phaser from 'phaser';
 import { ARENA } from '../../shared/arena';
 import type { PlayerState, ProjectileState } from '../../shared/simulation';
-import { COLORS } from './theme';
+import { COLORS, shade } from './theme';
 
+const PANEL_RADIUS = 12;
+const PANEL_BORDER = 2;
+
+/** 角丸 12px・縁 2px・上縁に明るい線のパネル。(x, y) は左上 */
+export function drawPanel(
+  g: Phaser.GameObjects.Graphics,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  border: number = COLORS.panelBorder,
+  fill: number = COLORS.panel,
+): void {
+  g.fillStyle(fill, 1);
+  g.fillRoundedRect(x, y, width, height, PANEL_RADIUS);
+  g.lineStyle(PANEL_BORDER, border, 1);
+  g.strokeRoundedRect(x, y, width, height, PANEL_RADIUS);
+  // 上縁のわずかに明るい線
+  g.lineStyle(1, shade(fill, 0.22), 1);
+  g.lineBetween(
+    x + PANEL_RADIUS,
+    y + PANEL_BORDER + 1,
+    x + width - PANEL_RADIUS,
+    y + PANEL_BORDER + 1,
+  );
+}
+
+/** 中心 (cx, cy) にパネルを置く Graphics を追加する */
+export function addPanel(
+  scene: Phaser.Scene,
+  cx: number,
+  cy: number,
+  width: number,
+  height: number,
+  border?: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  drawPanel(g, cx - width / 2, cy - height / 2, width, height, border);
+  return g;
+}
+
+/**
+ * アリーナ。床は camera の背景色（COLORS.floor）と同じ色で、アリーナ外の余白は
+ * 床の延長に見える。外周の線でアリーナの範囲を示す
+ */
 export function drawArena(g: Phaser.GameObjects.Graphics): void {
-  g.fillStyle(0x161926, 1);
+  g.fillStyle(COLORS.floor, 1);
   g.fillRect(0, 0, ARENA.width, ARENA.height);
   g.lineStyle(2, COLORS.arenaBorder, 1);
   g.strokeRect(1, 1, ARENA.width - 2, ARENA.height - 2);
-  g.fillStyle(COLORS.obstacle, 1);
   for (const o of ARENA.obstacles) {
-    g.fillRect(o.x - o.width / 2, o.y - o.height / 2, o.width, o.height);
+    const left = o.x - o.width / 2;
+    const top = o.y - o.height / 2;
+    g.fillStyle(COLORS.obstacle, 1);
+    g.fillRect(left, top, o.width, o.height);
+    g.lineStyle(2, COLORS.obstacleTop, 1);
+    g.lineBetween(left, top + 1, left + o.width, top + 1);
   }
 }
 
@@ -35,7 +84,7 @@ export function drawRobot(
   g.fillStyle(color, alpha);
   g.fillCircle(p.x, p.y, p.radius);
   // ボディの向き（短い線）
-  g.lineStyle(3, 0x0e1018, alpha);
+  g.lineStyle(3, COLORS.shadow, alpha);
   g.lineBetween(
     p.x,
     p.y,
@@ -43,7 +92,7 @@ export function drawRobot(
     p.y + Math.sin(p.moveDirAngle) * p.radius * 0.9,
   );
   // 武器の向き（太い線）
-  g.lineStyle(7, 0xe6e8f0, alpha);
+  g.lineStyle(7, 0xfff3dc, alpha);
   g.lineBetween(
     p.x,
     p.y,
@@ -72,6 +121,38 @@ export function drawProjectile(
   }
 }
 
+/** 遅延バーが減り始めるまで（ミリ秒） */
+const LAG_HOLD_MS = 350;
+/** 遅延バーの減少速度（割合/秒） */
+const LAG_SPEED = 1.2;
+
+/** HP バーの遅延分。減少分は一拍おいてから追いつき、回復は即座に反映する */
+export class HpLag {
+  private lag: number | null = null;
+  private holdMs = 0;
+
+  /** 現在の HP 比率と経過時間から遅延分の比率を返す */
+  update(ratio: number, deltaMs: number): number {
+    const r = Phaser.Math.Clamp(ratio, 0, 1);
+    if (this.lag === null || r >= this.lag) {
+      this.lag = r;
+      this.holdMs = 0;
+      return r;
+    }
+    if (this.holdMs < LAG_HOLD_MS) {
+      this.holdMs += deltaMs;
+      return this.lag;
+    }
+    this.lag = Math.max(r, this.lag - (LAG_SPEED * deltaMs) / 1000);
+    if (this.lag === r) this.holdMs = 0;
+    return this.lag;
+  }
+}
+
+/**
+ * HP バー（角丸・背景つき）。lagRatio を渡すと減少分を白っぽく残す。
+ * (x, y) は左上
+ */
 export function drawHpBar(
   g: Phaser.GameObjects.Graphics,
   x: number,
@@ -79,12 +160,27 @@ export function drawHpBar(
   width: number,
   ratio: number,
   color: number,
+  lagRatio?: number,
+  height = 12,
 ): void {
-  const r = Math.min(Math.max(ratio, 0), 1);
+  const r = Phaser.Math.Clamp(ratio, 0, 1);
+  const lag = Phaser.Math.Clamp(lagRatio ?? r, r, 1);
+  const radius = height / 2;
+  const pad = 2;
+  const innerW = width - pad * 2;
+  const innerH = height - pad * 2;
+  const innerR = innerH / 2;
   g.fillStyle(COLORS.hpBack, 1);
-  g.fillRect(x, y, width, 12);
-  g.fillStyle(color, 1);
-  g.fillRect(x, y, width * r, 12);
-  g.lineStyle(1, 0xffffff, 0.3);
-  g.strokeRect(x, y, width, 12);
+  g.fillRoundedRect(x, y, width, height, radius);
+  // 角丸は幅が直径未満だと崩れるため、短い時は半径を詰める
+  const fill = (ratioW: number, c: number, alpha: number) => {
+    const w = innerW * ratioW;
+    if (w <= 0) return;
+    g.fillStyle(c, alpha);
+    g.fillRoundedRect(x + pad, y + pad, w, innerH, Math.min(innerR, w / 2));
+  };
+  fill(lag, COLORS.hpLag, 0.85);
+  fill(r, color, 1);
+  g.lineStyle(1, COLORS.panelBorder, 1);
+  g.strokeRoundedRect(x, y, width, height, radius);
 }

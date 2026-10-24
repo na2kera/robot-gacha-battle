@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { ja } from '../i18n/ja';
 import { game } from '../net/game';
+import { addPanel } from '../ui/draw';
+import { setupLayout } from '../ui/layout';
 import { loadoutLines } from '../ui/partInfo';
 import { COLORS, TEXT, textStyle } from '../ui/theme';
 import { SCENE } from './keys';
@@ -12,9 +14,9 @@ export class RevealScene extends Phaser.Scene {
   }
 
   create(): void {
-    const w = this.scale.width;
-    this.add.text(w / 2, 50, ja.reveal.title, textStyle(32)).setOrigin(0.5);
-    this.add.text(w / 2, 280, ja.reveal.vs, { ...textStyle(48), fontStyle: 'bold' }).setOrigin(0.5);
+    // 基準 960×540 の箱の中央を基準に置く（広がった分は余白）
+    const { centerX: cx, centerY: cy } = setupLayout(this);
+    this.add.text(cx, cy - 220, ja.reveal.title, textStyle(32, TEXT.main, '700')).setOrigin(0.5);
 
     const players = game.publicState?.players ?? [];
     const meId = game.playerId;
@@ -24,15 +26,15 @@ export class RevealScene extends Phaser.Scene {
     );
     ordered.forEach((p, i) => {
       const isMe = p.playerId === meId;
-      const x = i === 0 ? w / 2 - 250 : w / 2 + 250;
+      const x = i === 0 ? cx - 250 : cx + 250;
+      addPanel(this, x, cy + 20, 380, 320, isMe ? COLORS.me : COLORS.opponent);
       this.add
-        .rectangle(x, 290, 380, 320, COLORS.panel)
-        .setStrokeStyle(3, isMe ? COLORS.me : COLORS.opponent);
-      this.add.text(x, 165, p.name, textStyle(28, isMe ? TEXT.me : TEXT.opponent)).setOrigin(0.5);
+        .text(x, cy - 105, p.name, textStyle(28, isMe ? TEXT.me : TEXT.opponent, '700'))
+        .setOrigin(0.5);
       const loadout = game.loadouts?.[p.playerId];
       if (loadout) {
         this.add
-          .text(x, 300, loadoutLines(loadout).join('\n'), {
+          .text(x, cy + 30, loadoutLines(loadout).join('\n'), {
             ...textStyle(22),
             lineSpacing: 14,
             align: 'left',
@@ -40,5 +42,6 @@ export class RevealScene extends Phaser.Scene {
           .setOrigin(0.5);
       }
     });
+    this.add.text(cx, cy + 10, ja.reveal.vs, textStyle(48, TEXT.main, '700')).setOrigin(0.5);
   }
 }

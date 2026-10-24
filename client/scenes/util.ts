@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { COLORS, css, FONT, TEXT } from '../ui/theme';
 
 /** scene 終了時に購読を解除する */
 export function autoOff(scene: Phaser.Scene, ...offs: (() => void)[]): void {
@@ -30,10 +31,12 @@ export function createTextInput(opts: {
     boxSizing: 'border-box',
     padding: '0 12px',
     fontSize: `${opts.fontSize ?? 20}px`,
-    border: '2px solid #3a4060',
-    borderRadius: '6px',
-    background: '#10121c',
-    color: '#e6e8f0',
+    fontFamily: FONT,
+    fontWeight: '500',
+    border: `2px solid ${css(COLORS.panelBorder)}`,
+    borderRadius: '10px',
+    background: css(COLORS.inset),
+    color: TEXT.main,
     outline: 'none',
   } satisfies Partial<CSSStyleDeclaration>);
   return el;

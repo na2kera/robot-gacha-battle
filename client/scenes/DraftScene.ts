@@ -3,14 +3,24 @@ import { PART_IDS_BY_TYPE, type PartType } from '../../shared/parts';
 import { PART_TYPES } from '../../shared/protocol';
 import { ja } from '../i18n/ja';
 import { game } from '../net/game';
-import { Button } from '../ui/Button';
+import { Button, BUTTON_MAIN_HEIGHT, BUTTON_MIN_HEIGHT } from '../ui/Button';
+import { addPanel, drawPanel } from '../ui/draw';
+import { Lamp } from '../ui/Lamp';
+import { HUD_TOP, setupLayout, viewport, type Viewport } from '../ui/layout';
 import { partName, partStatRows } from '../ui/partInfo';
-import { COLORS, TEXT, textStyle } from '../ui/theme';
+import { TEXT, textStyle } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import { SCENE } from './keys';
 import { autoOff, remainingColor } from './util';
 
 /** 1 部位あたりの抽選上限 */
 const MAX_DRAWS = 5;
+/** 比較表の背面を覆う矩形の一辺（どの縦横比でも見えている範囲を覆う） */
+const SHADE_SIZE = 4000;
+/** 比較表パネルの幅・中心から上端まで・内側の余白 */
+const COMPARE_WIDTH = 860;
+const COMPARE_HALF_TOP = 215;
+const COMPARE_GAP = 20;
 
 /** ガチャ: 4 部位のタブ、現在候補と性能、確定 / 捨てて次を引く、比較表 */
 export class DraftScene extends Phaser.Scene {
@@ -21,76 +31,85 @@ export class DraftScene extends Phaser.Scene {
   private candidateName!: Phaser.GameObjects.Text;
   private stateText!: Phaser.GameObjects.Text;
   private statsText!: Phaser.GameObjects.Text;
+  private lamp!: Lamp;
   private drawsLeft!: Phaser.GameObjects.Text;
   private primaryBtn!: Button;
   private redrawBtn!: Button;
   private redrawNote!: Phaser.GameObjects.Text;
-  private errorText!: Phaser.GameObjects.Text;
+  private toast!: Toast;
   private compare: Phaser.GameObjects.Container | null = null;
+  private vp!: Viewport;
 
   constructor() {
     super(SCENE.draft);
   }
 
   create(): void {
-    const w = this.scale.width;
     this.compare = null;
     // 未確定の部位を最初に開く
     this.tab = PART_TYPES.find((t) => !game.privateDraft?.parts[t].locked) ?? 'body';
 
-    this.timer = this.add.text(w / 2, 28, '', textStyle(26)).setOrigin(0.5);
-    this.opponentText = this.add
-      .text(w - 24, 28, '', textStyle(18, TEXT.opponent))
-      .setOrigin(1, 0.5);
+    // 本体は基準 960×540 の箱の中央を基準に置く（広がった分は余白）
+    const { centerX: cx, centerY: cy } = viewport(this);
+
+    // HUD は見えている範囲の端に置き、画面サイズ変更で置き直す（setupLayout の中）
+    this.timer = this.add.text(0, 0, '', textStyle(26, TEXT.main, '700')).setOrigin(0.5);
+    this.opponentText = this.add.text(0, 0, '', textStyle(18, TEXT.opponent)).setOrigin(1, 0.5);
 
     this.tabs = PART_TYPES.map(
       (t, i) =>
         new Button(
           this,
-          120 + i * 240,
-          82,
+          cx - 360 + i * 240,
+          cy - 188,
           ja.draft.partNames[t],
           () => {
             this.tab = t;
             this.refresh();
           },
-          { width: 220, height: 46 },
+          { width: 220 },
         ),
     );
 
-    this.add.rectangle(w / 2, 300, 920, 350, COLORS.panel).setStrokeStyle(2, COLORS.panelBorder);
-    this.stateText = this.add.text(60, 145, '', textStyle(16, TEXT.sub));
-    this.candidateName = this.add.text(60, 170, '', textStyle(36));
-    this.statsText = this.add.text(60, 230, '', { ...textStyle(20), lineSpacing: 8 });
+    addPanel(this, cx, cy + 30, 920, 350);
+    this.stateText = this.add.text(cx - 420, cy - 125, '', textStyle(16, TEXT.sub));
+    this.candidateName = this.add.text(cx - 420, cy - 100, '', textStyle(36, TEXT.main, '700'));
+    this.statsText = this.add.text(cx - 420, cy - 40, '', { ...textStyle(20), lineSpacing: 8 });
 
-    const bx = 720;
-    this.drawsLeft = this.add.text(bx, 160, '', textStyle(20)).setOrigin(0.5);
-    this.primaryBtn = new Button(this, bx, 225, '', () => this.onPrimary(), {
+    const bx = cx + 240;
+    // 残り回数: ランプ 5 個 + 数字
+    this.lamp = new Lamp(this, bx - 70, cy - 110, MAX_DRAWS, { radius: 9, gap: 28 });
+    this.drawsLeft = this.add.text(bx + 15, cy - 110, '', textStyle(20)).setOrigin(0, 0.5);
+    this.primaryBtn = new Button(this, bx, cy - 45, '', () => this.onPrimary(), {
       width: 340,
-      height: 60,
+      height: BUTTON_MAIN_HEIGHT,
     });
-    this.redrawBtn = new Button(this, bx, 320, ja.draft.redraw, () => game.draw(this.tab), {
+    this.redrawBtn = new Button(this, bx, cy + 50, ja.draft.redraw, () => game.draw(this.tab), {
       width: 340,
-      height: 56,
-      color: COLORS.buttonDanger,
+      variant: 'danger',
     });
     this.redrawNote = this.add
-      .text(bx, 362, ja.draft.redrawNote, textStyle(14, TEXT.warn))
+      .text(bx, cy + 86, ja.draft.redrawNote, textStyle(14, TEXT.warn))
       .setOrigin(0.5, 0);
-    new Button(this, bx, 430, ja.draft.compare, () => this.toggleCompare(), {
+    new Button(this, bx, cy + 160, ja.draft.compare, () => this.toggleCompare(), {
       width: 200,
-      height: 44,
-      color: COLORS.buttonSecondary,
+      variant: 'secondary',
       fontSize: 18,
     });
 
-    this.errorText = this.add.text(w / 2, 505, '', textStyle(16, TEXT.danger)).setOrigin(0.5);
+    this.toast = new Toast(this);
+
+    setupLayout(this, (v) => {
+      this.vp = v;
+      this.timer.setPosition(v.centerX, v.top + HUD_TOP + 18);
+      this.opponentText.setPosition(v.right - 24, v.top + HUD_TOP + 18);
+    });
 
     autoOff(
       this,
       game.on('change', () => this.refresh()),
       game.on('draft', (err) => {
-        this.errorText.setText(err ? (ja.draft.errors[err] ?? err) : '');
+        if (err) this.toast.show(ja.draft.errors[err] ?? err, 'danger');
       }),
     );
     this.refresh();
@@ -123,7 +142,7 @@ export class DraftScene extends Phaser.Scene {
       const p = draft.parts[t];
       const btn = this.tabs[i]!;
       btn.setText(p.locked ? `${ja.draft.partNames[t]} ✓` : ja.draft.partNames[t]);
-      btn.setColor(t === this.tab ? COLORS.button : COLORS.buttonSecondary);
+      btn.setVariant(t === this.tab ? 'primary' : 'secondary');
     });
 
     const part = draft.parts[this.tab];
@@ -142,7 +161,10 @@ export class DraftScene extends Phaser.Scene {
     );
 
     const left = MAX_DRAWS - part.drawCount;
-    this.drawsLeft.setText(part.locked ? ja.draft.confirmed : ja.draft.drawsLeft(left));
+    this.lamp.setLit(left, part.locked);
+    this.drawsLeft
+      .setText(part.locked ? ja.draft.confirmed : ja.draft.drawsLeft(left))
+      .setColor(part.locked ? TEXT.ok : TEXT.main);
 
     if (part.locked) {
       this.primaryBtn.setVisible(false);
@@ -165,34 +187,41 @@ export class DraftScene extends Phaser.Scene {
       this.compare = null;
       return;
     }
-    const w = this.scale.width;
-    const h = this.scale.height;
+    const v = this.vp;
+    const { centerX: cx, centerY: cy } = v;
     const c = this.add.container(0, 0).setDepth(50);
-    const shade = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.75).setInteractive();
+    // 見えている範囲より十分大きく覆い、画面サイズが変わっても隙間を作らない
+    const shade = this.add
+      .rectangle(cx, cy, SHADE_SIZE, SHADE_SIZE, 0x000000, 0.75)
+      .setInteractive();
     c.add(shade);
+    // パネルは内容とボタンの高さが決まってから描く（背面に置くため先に追加）
+    const panel = this.add.graphics();
+    c.add(panel);
+    const texts: Phaser.GameObjects.Text[] = [];
     c.add(
       this.add
-        .rectangle(w / 2, h / 2, 860, 420, COLORS.panel)
-        .setStrokeStyle(2, COLORS.panelBorder),
-    );
-    c.add(
-      this.add
-        .text(w / 2, 90, `${ja.draft.partNames[this.tab]} ${ja.draft.compare}`, textStyle(24))
+        .text(
+          cx,
+          cy - 180,
+          `${ja.draft.partNames[this.tab]} ${ja.draft.compare}`,
+          textStyle(24, TEXT.main, '700'),
+        )
         .setOrigin(0.5),
     );
     const ids = PART_IDS_BY_TYPE[this.tab];
     const labels = partStatRows(this.tab, ids[0]!).map(([k]) => k);
-    c.add(
-      this.add.text(110, 140, ['', ...labels].join('\n'), {
+    texts.push(
+      this.add.text(cx - 370, cy - 130, ['', ...labels].join('\n'), {
         ...textStyle(18, TEXT.sub),
         lineSpacing: 10,
       }),
     );
     ids.forEach((id, i) => {
-      const values = partStatRows(this.tab, id).map(([, v]) => v);
-      c.add(
+      const values = partStatRows(this.tab, id).map(([, val]) => val);
+      texts.push(
         this.add
-          .text(400 + i * 180, 140, [partName(id), ...values].join('\n'), {
+          .text(cx - 80 + i * 180, cy - 130, [partName(id), ...values].join('\n'), {
             ...textStyle(18),
             lineSpacing: 10,
             align: 'center',
@@ -200,13 +229,19 @@ export class DraftScene extends Phaser.Scene {
           .setOrigin(0.5, 0),
       );
     });
+    c.add(texts);
+    // 表の下端 + 余白にボタンを置き、パネルはボタンの下にも余白を取って囲む
+    const tableBottom = Math.max(...texts.map((t) => t.y + t.height));
+    const btnY = tableBottom + COMPARE_GAP + BUTTON_MIN_HEIGHT / 2;
     c.add(
-      new Button(this, w / 2, 465, ja.draft.close, () => this.toggleCompare(), {
+      new Button(this, cx, btnY, ja.draft.close, () => this.toggleCompare(), {
         width: 180,
-        height: 44,
-        color: COLORS.buttonSecondary,
+        variant: 'secondary',
       }),
     );
+    const panelTop = cy - COMPARE_HALF_TOP;
+    const panelBottom = btnY + BUTTON_MIN_HEIGHT / 2 + COMPARE_GAP;
+    drawPanel(panel, cx - COMPARE_WIDTH / 2, panelTop, COMPARE_WIDTH, panelBottom - panelTop);
     this.compare = c;
   }
 }

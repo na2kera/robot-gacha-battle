@@ -42,7 +42,8 @@ export class Controls {
     initialAim: number,
   ) {
     this.aimAngle = initialAim;
-    this.gfx = scene.add.graphics().setDepth(100);
+    // スティックは画面座標（Pointer.x/y）で描くため、カメラのスクロールに追従させない
+    this.gfx = scene.add.graphics().setDepth(100).setScrollFactor(0);
     const input = scene.input;
     // マウス + タッチ 3 本以上を扱う
     if (input.manager.pointersTotal < 4) input.addPointer(4 - input.manager.pointersTotal);
@@ -129,9 +130,11 @@ export class Controls {
         firing = true;
       }
     } else if (this.mouseAim) {
+      // マウスは画面座標で持ち、カメラ（基準の箱を中央に置くためスクロールする）でワールド座標に直す
       const self = this.getSelfPos();
-      const dx = this.mouseX - self.x;
-      const dy = this.mouseY - self.y;
+      const world = this.scene.cameras.main.getWorldPoint(this.mouseX, this.mouseY);
+      const dx = world.x - self.x;
+      const dy = world.y - self.y;
       if (dx !== 0 || dy !== 0) this.aimAngle = Math.atan2(dy, dx);
       firing = this.mouseFiring;
     }

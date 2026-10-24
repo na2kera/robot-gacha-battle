@@ -8,6 +8,12 @@
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>ロボットガチャバトル</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700&display=swap"
+    />
     <style>
       html,
       body {
@@ -16,7 +22,7 @@
         width: 100%;
         height: 100dvh;
         overflow: hidden;
-        background: #0e1018;
+        background: #172333;
         touch-action: none;
         -webkit-user-select: none;
         user-select: none;
@@ -44,10 +50,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #0e1018;
-        color: #e6e8f0;
+        background: #172333;
+        color: #fff3dc;
         font:
-          22px system-ui,
+          700 22px 'Noto Sans JP',
+          system-ui,
           sans-serif;
       }
       #banner {
@@ -60,16 +67,22 @@
         gap: 12px;
         align-items: center;
         padding: 6px 14px;
-        border-radius: 8px;
-        background: rgba(20, 22, 34, 0.9);
-        color: #ffb020;
+        border: 2px solid #3c5068;
+        border-radius: 12px;
+        background: rgba(41, 59, 80, 0.96);
+        color: #ffd166;
         font:
-          16px system-ui,
+          700 16px 'Noto Sans JP',
+          system-ui,
           sans-serif;
       }
       #banner button {
         font: inherit;
         padding: 4px 12px;
+        border: 0;
+        border-radius: 8px;
+        background: #ffd166;
+        color: #2a1e05;
       }
       [hidden] {
         display: none !important;

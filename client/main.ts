@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { ARENA } from '../shared/arena';
 import { URL_ROOM_CODE } from './env';
 import { game } from './net/game';
 import { loadSession } from './net/session';
@@ -12,7 +11,9 @@ import { RevealScene } from './scenes/RevealScene';
 import { RoomScene } from './scenes/RoomScene';
 import { StatusScene } from './scenes/StatusScene';
 import { TrialScene } from './scenes/TrialScene';
+import { BASE_HEIGHT, BASE_WIDTH } from './ui/layout';
 import { setupOverlays } from './ui/overlay';
+import { COLORS, css } from './ui/theme';
 
 setupOverlays(() => game.reconnectNow());
 
@@ -26,13 +27,16 @@ if (stored && (!URL_ROOM_CODE || URL_ROOM_CODE === stored.roomCode.toUpperCase()
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
-  width: ARENA.width,
-  height: ARENA.height,
-  backgroundColor: '#1b1e2b',
+  width: BASE_WIDTH,
+  height: BASE_HEIGHT,
+  backgroundColor: css(COLORS.background),
+  // 文字と図形は滑らかに描く。ドット絵のテクスチャだけ BootScene で最近傍（NEAREST）にする
+  pixelArt: false,
   dom: { createContainer: true },
   input: { activePointers: 4 },
   scale: {
-    mode: Phaser.Scale.FIT,
+    // 画面全体を使う。基準 960×540 は常に全体が見え、広がった分は余白（client/ui/layout.ts）
+    mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   scene: [

@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { ja } from '../i18n/ja';
 import { game } from '../net/game';
-import { Button } from '../ui/Button';
+import { Button, BUTTON_MAIN_HEIGHT } from '../ui/Button';
+import { addPanel } from '../ui/draw';
+import { setupLayout } from '../ui/layout';
 import { loadoutLines } from '../ui/partInfo';
 import { COLORS, TEXT, textStyle } from '../ui/theme';
 import { SCENE } from './keys';
@@ -12,29 +14,35 @@ export class ResultScene extends Phaser.Scene {
   private content: Phaser.GameObjects.GameObject[] = [];
   private rematchBtn!: Button;
   private waitText!: Phaser.GameObjects.Text;
+  private cx = 0;
+  private cy = 0;
 
   constructor() {
     super(SCENE.result);
   }
 
   create(): void {
-    const w = this.scale.width;
+    // 基準 960×540 の箱の中央を基準に置く（広がった分は余白）
+    const { centerX: cx, centerY: cy } = setupLayout(this);
+    this.cx = cx;
+    this.cy = cy;
     this.content = [];
     this.rematchBtn = new Button(
       this,
-      w / 2 - 150,
-      490,
+      cx - 150,
+      cy + 220,
       ja.result.rematch,
       () => {
         game.setRematch(!game.rematchRequested);
       },
-      { width: 280 },
+      { width: 280, height: BUTTON_MAIN_HEIGHT },
     );
-    new Button(this, w / 2 + 180, 490, ja.result.leave, () => game.leave(), {
+    new Button(this, cx + 180, cy + 220, ja.result.leave, () => game.leave(), {
       width: 160,
-      color: COLORS.buttonSecondary,
+      height: BUTTON_MAIN_HEIGHT,
+      variant: 'secondary',
     });
-    this.waitText = this.add.text(w / 2 - 150, 445, '', textStyle(16, TEXT.sub)).setOrigin(0.5);
+    this.waitText = this.add.text(cx - 150, cy + 175, '', textStyle(16, TEXT.sub)).setOrigin(0.5);
 
     autoOff(
       this,
@@ -48,13 +56,13 @@ export class ResultScene extends Phaser.Scene {
   private refresh(): void {
     for (const o of this.content) o.destroy();
     this.content = [];
-    const w = this.scale.width;
+    const { cx, cy } = this;
     const r = game.result;
     const meId = game.playerId;
 
     if (!r) {
       this.content.push(
-        this.add.text(w / 2, 200, ja.result.waitingResult, textStyle(24, TEXT.sub)).setOrigin(0.5),
+        this.add.text(cx, cy - 70, ja.result.waitingResult, textStyle(24, TEXT.sub)).setOrigin(0.5),
       );
     } else {
       const outcome =
@@ -67,13 +75,11 @@ export class ResultScene extends Phaser.Scene {
               : ja.result.lose;
       const color = r.winnerId === null ? TEXT.main : r.winnerId === meId ? TEXT.ok : TEXT.danger;
       this.content.push(
-        this.add
-          .text(w / 2, 55, outcome, { ...textStyle(56, color), fontStyle: 'bold' })
-          .setOrigin(0.5),
+        this.add.text(cx, cy - 215, outcome, textStyle(56, color, '700')).setOrigin(0.5),
         this.add
           .text(
-            w / 2,
-            108,
+            cx,
+            cy - 162,
             r.reason === 'aborted' ? '' : ja.result.reasons[r.reason],
             textStyle(20, TEXT.sub),
           )
@@ -84,7 +90,7 @@ export class ResultScene extends Phaser.Scene {
       );
       players.forEach((p, i) => {
         const isMe = p.playerId === meId;
-        const x = i === 0 ? w / 2 - 230 : w / 2 + 230;
+        const x = i === 0 ? cx - 230 : cx + 230;
         const ratio = r.hpRatios[p.playerId];
         const loadout = r.loadouts[p.playerId] ?? game.loadouts?.[p.playerId];
         const lines = [
@@ -92,14 +98,12 @@ export class ResultScene extends Phaser.Scene {
           ...(loadout ? loadoutLines(loadout) : []),
         ];
         this.content.push(
+          addPanel(this, x, cy, 400, 250, isMe ? COLORS.me : COLORS.opponent),
           this.add
-            .rectangle(x, 270, 400, 250, COLORS.panel)
-            .setStrokeStyle(3, isMe ? COLORS.me : COLORS.opponent),
-          this.add
-            .text(x, 170, p.name, textStyle(24, isMe ? TEXT.me : TEXT.opponent))
+            .text(x, cy - 100, p.name, textStyle(24, isMe ? TEXT.me : TEXT.opponent, '700'))
             .setOrigin(0.5),
           this.add
-            .text(x, 285, lines.join('\n'), { ...textStyle(18), lineSpacing: 8 })
+            .text(x, cy + 15, lines.join('\n'), { ...textStyle(18), lineSpacing: 8 })
             .setOrigin(0.5),
         );
       });
@@ -108,7 +112,7 @@ export class ResultScene extends Phaser.Scene {
     const canRematch = game.phase === 'RESULT' && game.socket.status === 'open';
     this.rematchBtn
       .setText(game.rematchRequested ? ja.result.cancelRematch : ja.result.rematch)
-      .setColor(game.rematchRequested ? COLORS.buttonSecondary : COLORS.button)
+      .setVariant(game.rematchRequested ? 'secondary' : 'primary')
       .setEnabled(canRematch);
     const opponentWants = game.phase === 'RESULT' && !!game.opponent?.ready;
     this.waitText.setText(

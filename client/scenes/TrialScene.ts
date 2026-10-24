@@ -12,7 +12,8 @@ import { DEBUG } from '../env';
 import { ja } from '../i18n/ja';
 import { Controls } from '../input/controls';
 import { game } from '../net/game';
-import { drawArena, drawArenaDebug, drawHpBar, drawProjectile, drawRobot } from '../ui/draw';
+import { drawArena, drawArenaDebug, drawHpBar, drawProjectile, drawRobot, HpLag } from '../ui/draw';
+import { HUD_TOP, setupLayout } from '../ui/layout';
 import { COLORS, TEXT, textStyle } from '../ui/theme';
 import { SCENE } from './keys';
 import { remainingColor } from './util';
@@ -42,6 +43,7 @@ export class TrialScene extends Phaser.Scene {
   private timer!: Phaser.GameObjects.Text;
   private opponentText!: Phaser.GameObjects.Text;
   private targetHp!: Phaser.GameObjects.Text;
+  private targetLag = new HpLag();
   private ready = false;
 
   constructor() {
@@ -73,7 +75,10 @@ export class TrialScene extends Phaser.Scene {
     this.acc = 0;
     this.seq = 0;
     this.respawnAt = null;
+    this.targetLag = new HpLag();
 
+    // アリーナ外の余白は床の延長色
+    this.cameras.main.setBackgroundColor(COLORS.floor);
     const bg = this.add.graphics();
     drawArena(bg);
     if (DEBUG) drawArenaDebug(bg);
@@ -82,13 +87,17 @@ export class TrialScene extends Phaser.Scene {
     const self = this.state.players[0]!;
     this.controls = new Controls(this, () => this.renderPos(this.meId), self.aimAngle);
 
-    const w = this.scale.width;
-    this.add.text(16, 12, ja.trial.title, textStyle(20));
-    this.add.text(16, 40, ja.trial.hint, textStyle(14, TEXT.sub));
-    this.timer = this.add.text(w / 2, 24, '', textStyle(24)).setOrigin(0.5);
-    this.opponentText = this.add
-      .text(w - 16, 24, '', textStyle(18, TEXT.opponent))
-      .setOrigin(1, 0.5);
+    // HUD は見えている範囲の端に置き、画面サイズ変更で置き直す
+    const title = this.add.text(0, 0, ja.trial.title, textStyle(20, TEXT.main, '700'));
+    const hint = this.add.text(0, 0, ja.trial.hint, textStyle(14, TEXT.sub));
+    this.timer = this.add.text(0, 0, '', textStyle(24, TEXT.main, '700')).setOrigin(0.5);
+    this.opponentText = this.add.text(0, 0, '', textStyle(18, TEXT.opponent)).setOrigin(1, 0.5);
+    setupLayout(this, (v) => {
+      title.setPosition(v.left + 16, v.top + HUD_TOP);
+      hint.setPosition(v.left + 16, v.top + HUD_TOP + 28);
+      this.timer.setPosition(v.centerX, v.top + HUD_TOP + 12);
+      this.opponentText.setPosition(v.right - 16, v.top + HUD_TOP + 12);
+    });
     this.targetHp = this.add.text(0, 0, '', textStyle(14)).setOrigin(0.5, 1);
     this.ready = true;
   }
@@ -103,7 +112,7 @@ export class TrialScene extends Phaser.Scene {
       this.state = stepBattle(this.state, new Map([[this.meId, cmd]]), this.statsById, TICK_DT);
     }
     this.handleTarget(time);
-    this.render();
+    this.render(delta);
 
     const ms = game.remainingMs(game.publicState?.deadlineAt);
     if (ms !== null) {
@@ -142,7 +151,7 @@ export class TrialScene extends Phaser.Scene {
     return this.lerpPlayer(id) ?? { x: 0, y: 0 };
   }
 
-  private render(): void {
+  private render(delta: number): void {
     const g = this.gfx;
     g.clear();
     const target = this.lerpPlayer(TARGET_ID);
@@ -155,6 +164,7 @@ export class TrialScene extends Phaser.Scene {
         60,
         target.hp / target.maxHp,
         COLORS.hpFill,
+        this.targetLag.update(target.hp / target.maxHp, delta),
       );
       this.targetHp
         .setPosition(target.x, target.y - target.radius - 22)
